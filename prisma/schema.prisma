@@ -1,0 +1,332 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Auth (NextAuth / Auth.js Prisma adapter)
+// ----------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+
+  accounts    Account[]
+  sessions    Session[]
+  connections Connection[]
+  messages    Message[]
+  events      CalendarEvent[]
+  documents   Document[]
+  tasks       Task[]
+  commitments Commitment[]
+  memories    Memory[]
+  agentRuns   AgentRun[]
+  auditLogs   AuditLog[]
+  people      Person[]
+  briefings   Briefing[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ----------------------------------------------------------------------------
+// Integrations
+// ----------------------------------------------------------------------------
+
+enum ConnectionStatus {
+  connected
+  disconnected
+  error
+}
+
+model Connection {
+  id                     String           @id @default(cuid())
+  userId                 String
+  provider               String // gmail | calendar | drive | slack | github | notion | google
+  accessTokenEncrypted   String?          @db.Text
+  refreshTokenEncrypted  String?          @db.Text
+  scopes                 String[]
+  status                 ConnectionStatus @default(connected)
+  externalAccountId      String?
+  expiresAt              DateTime?
+  lastSyncAt             DateTime?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+}
+
+// ----------------------------------------------------------------------------
+// Synced data
+// ----------------------------------------------------------------------------
+
+model Message {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String
+  externalId String
+  threadId   String?
+  sender     String?
+  recipients String[]
+  subject    String?
+  body       String?  @db.Text
+  snippet    String?  @db.Text
+  unread     Boolean  @default(false)
+  timestamp  DateTime
+  metadata   Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, externalId])
+  @@index([userId, timestamp])
+}
+
+model CalendarEvent {
+  id            String   @id @default(cuid())
+  userId        String
+  externalId    String
+  title         String?
+  startTime     DateTime
+  endTime       DateTime
+  attendees     Json?
+  location      String?
+  conferenceUrl String?
+  metadata      Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, externalId])
+  @@index([userId, startTime])
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String
+  externalId String
+  title      String?
+  content    String?  @db.Text
+  url        String?
+  updatedAt  DateTime @default(now())
+  metadata   Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, externalId])
+}
+
+enum TaskStatus {
+  todo
+  doing
+  done
+}
+
+model Task {
+  id       String     @id @default(cuid())
+  userId   String
+  title    String
+  status   TaskStatus @default(todo)
+  priority String     @default("MEDIUM") // CRITICAL | HIGH | MEDIUM | LOW
+  deadline DateTime?
+  source   String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum CommitmentStatus {
+  open
+  done
+  cancelled
+  overdue
+}
+
+model Commitment {
+  id          String           @id @default(cuid())
+  userId      String
+  person      String
+  personId    String?
+  description String
+  deadline    DateTime?
+  source      String
+  sourceUrl   String?
+  status      CommitmentStatus @default(open)
+  confidence  Float            @default(0.5)
+  detectedAt  DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+enum MemoryType {
+  short_term
+  long_term
+  work
+}
+
+model Memory {
+  id         String     @id @default(cuid())
+  userId     String
+  type       MemoryType
+  content    String     @db.Text
+  source     String
+  confidence Float       @default(0.5)
+  importance Float       @default(0.5)
+  runId      String?
+  expiresAt  DateTime?
+  createdAt  DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model Person {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  email         String?
+  org           String?
+  importance    String    @default("MEDIUM")
+  lastContactAt DateTime?
+  metadata      Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, email])
+}
+
+// ----------------------------------------------------------------------------
+// Agent runs
+// ----------------------------------------------------------------------------
+
+enum RunStatus {
+  pending
+  planning
+  in_progress
+  awaiting_approval
+  verifying
+  succeeded
+  failed
+  partial
+  cancelled
+}
+
+enum StepStatus {
+  pending
+  running
+  succeeded
+  failed
+  awaiting_approval
+  rejected
+  skipped
+}
+
+model AgentRun {
+  id          String    @id @default(cuid())
+  userId      String
+  goal        String    @db.Text
+  status      RunStatus @default(pending)
+  summary     String?   @db.Text
+  costUsd     Float     @default(0)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps AgentStep[]
+
+  @@index([userId, startedAt])
+}
+
+model AgentStep {
+  id               String     @id @default(cuid())
+  agentRunId       String
+  index            Int
+  title            String
+  tool             String?
+  permission       String     @default("READ") // READ | DRAFT | WRITE | DESTRUCTIVE
+  status           StepStatus @default(pending)
+  requiresApproval Boolean    @default(false)
+  approvalDecision String? // approve | reject
+  arguments        Json?
+  result           Json?
+  summary          String?    @db.Text
+  verification     Json?
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  run AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+
+  @@index([agentRunId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  tool      String?
+  runId     String?
+  stepId    String?
+  result    Json?
+  timestamp DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, timestamp])
+}
+
+model Briefing {
+  id          String   @id @default(cuid())
+  userId      String
+  generatedAt DateTime @default(now())
+  items       Json // BriefingItem[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, generatedAt])
+}
