@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { DEMO_MODE } from "@/lib/demo";
+import { demoStore } from "@/lib/demoStore";
 import type { AgentRunDTO, AgentStepDTO, RunStreamEvent } from "@/lib/types";
 
 /**
@@ -9,6 +11,10 @@ import type { AgentRunDTO, AgentStepDTO, RunStreamEvent } from "@/lib/types";
  * Reducer keyed by step.id, per PERSON_B spec §7.4: update in place, never
  * re-fetch the whole run on every event. On stream error/close, falls back to
  * one GET so the final state always matches the server.
+ *
+ * In demo mode there's no server to stream from, so this subscribes directly
+ * to the in-memory demoStore's pub-sub instead of opening an EventSource —
+ * same external behavior (run state updates live), no network involved.
  */
 export function useAgentRunStream(runId: string | null, initial?: AgentRunDTO) {
   const [run, setRun] = useState<AgentRunDTO | null>(initial ?? null);
@@ -17,6 +23,14 @@ export function useAgentRunStream(runId: string | null, initial?: AgentRunDTO) {
 
   useEffect(() => {
     if (!runId) return;
+
+    if (DEMO_MODE) {
+      setRun(demoStore.getRun(runId));
+      setConnected(true);
+      const unsubscribe = demoStore.subscribeRun(runId, (r) => setRun(r));
+      return unsubscribe;
+    }
+
     let cancelled = false;
 
     api

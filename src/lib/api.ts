@@ -2,7 +2,15 @@
  * lib/api.ts — the seam. One function per endpoint in the API contract
  * (src/lib/types.ts, mirrored in PERSON_A_AGENT_BACKEND.md §7 / §10).
  * Every component calls through here — never a raw fetch() in a page.
+ *
+ * In dev-only demo mode (see src/lib/demo.ts), `api` is swapped for
+ * src/lib/demoApi.ts, a same-shaped implementation backed by in-memory
+ * fixtures instead of fetch(). The swap happens once, here, so no page or
+ * component needs to know which one it's talking to. This can never affect
+ * a production build — see the guard in src/lib/demo.ts.
  */
+import { DEMO_MODE } from "@/lib/demo";
+import { demoApi } from "@/lib/demoApi";
 import type {
   AgentRunDTO,
   AgentRunSummaryDTO,
@@ -46,7 +54,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export const api = {
+const realApi = {
   me: () => request<{ id: string; name: string | null; email: string | null; image: string | null }>("/api/me"),
 
   today: () => request<TodayResponse>("/api/today"),
@@ -89,3 +97,5 @@ export const api = {
       { id: string; action: string; tool: string | null; runId: string | null; stepId: string | null; result: unknown; timestamp: string }[]
     >(`/api/audit-logs${runId ? `?runId=${runId}` : ""}`),
 };
+
+export const api: typeof realApi = DEMO_MODE ? demoApi : realApi;

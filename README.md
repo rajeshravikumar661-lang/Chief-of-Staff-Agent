@@ -36,8 +36,16 @@ npm run dev
 npm run worker                # background jobs — separate process (optional)
 ```
 Already have a Postgres? Point `DATABASE_URL` at it and run `npx prisma migrate dev && npm run seed`.
+
 DB lifecycle: `npm run db:start` / `db:stop` / `db:reset`.
 </details>
+
+### Frontend demo mode (no Postgres, no Google OAuth)
+
+To browse and click through the frontend (`/today`, `/chat`, `/agent-runs`, `/connections`, …)
+without a database or OAuth credentials: `cp .env.local.example .env.local`, then
+`npm run dev`. The sign-in page gets a dev-only "Explore demo" link. Details and the safety
+guarantees (dev-only, cannot ship in a production build) are documented in `src/lib/demo.ts`.
 
 Smoke check once it's up:
 ```bash

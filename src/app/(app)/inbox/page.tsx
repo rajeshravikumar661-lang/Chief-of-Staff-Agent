@@ -30,7 +30,7 @@ export default function InboxPage() {
     <div>
       <div className="mb-6">
         <h1 className="font-serif text-2xl font-semibold text-ink">Inbox</h1>
-        <p className="mt-1 text-sm text-ink-soft">Search your synced messages — this isn't a full unread view yet.</p>
+        <p className="mt-1 text-sm text-ink-soft">Search your synced messages — this isn&apos;t a full unread view yet.</p>
       </div>
 
       <form onSubmit={submit} className="mb-6 flex items-center gap-2">

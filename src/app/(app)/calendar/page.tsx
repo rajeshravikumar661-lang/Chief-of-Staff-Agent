@@ -16,9 +16,9 @@ export default function CalendarPage() {
     <div>
       <div className="mb-6">
         <h1 className="font-serif text-2xl font-semibold text-ink">Calendar</h1>
-        <p className="mt-1 text-sm text-ink-soft">Today's schedule.</p>
+        <p className="mt-1 text-sm text-ink-soft">Today&apos;s schedule.</p>
         <p className="mt-1 text-xs text-ink-faint">
-          Only today's events are available in this milestone — a multi-day view is coming later.
+          Only today&apos;s events are available in this milestone — a multi-day view is coming later.
         </p>
       </div>
 

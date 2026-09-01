@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR from "swr";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { initials } from "@/lib/ui";
 
@@ -34,12 +35,12 @@ export default function SettingsPage() {
           </div>
 
           <div className="mt-5 border-t border-hairline pt-4">
-            <a
+            <Link
               href="/api/auth/signout"
               className="text-sm text-ink-soft underline decoration-dotted hover:text-ink"
             >
               Sign out
-            </a>
+            </Link>
           </div>
         </div>
       )}

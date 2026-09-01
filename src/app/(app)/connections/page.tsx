@@ -3,7 +3,6 @@
 import useSWR from "swr";
 import { api } from "@/lib/api";
 import { ConnectionCard } from "@/components/ConnectionCard";
-import type { ConnectionDTO } from "@/lib/types";
 
 const GOOGLE_PROVIDERS = new Set(["gmail", "calendar", "drive"]);
 

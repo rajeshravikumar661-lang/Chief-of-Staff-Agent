@@ -59,7 +59,7 @@ export default function ChatPage() {
     <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-2xl flex-col">
       <div className="mb-4">
         <h1 className="font-serif text-xl font-semibold text-ink">Chat</h1>
-        <p className="mt-1 text-sm text-ink-soft">Ask for anything — it'll show its work as it goes.</p>
+        <p className="mt-1 text-sm text-ink-soft">Ask for anything — it&apos;ll show its work as it goes.</p>
       </div>
 
       <div className="flex-1 space-y-6 overflow-y-auto pb-4">
