@@ -1,115 +1,179 @@
 /**
- * WhatsApp channel via Baileys (unofficial WhatsApp Web multi-device).
+ * Multi-tenant WhatsApp channel via Baileys.
  *
- * IMPORTANT: this is an unofficial library. Use a number you don't mind risking;
- * WhatsApp may rate-limit or ban numbers that look automated. It needs a one-time
- * QR pairing (`npm run wa:pair`) and a long-lived socket — it runs on the worker
- * process, never in a Vercel serverless function.
+ * Each user links their OWN WhatsApp from the dashboard (scan a QR → "Linked
+ * devices"). The system then messages them on their own number (self-chat).
+ * Auth state is per-user under WHATSAPP_AUTH_DIR/<userId>/.
+ *
+ * Sockets are long-lived and in-process — this works on a persistent Node server
+ * (local `npm run dev`, a VPS, Railway/Render) but NOT on Vercel serverless:
+ * a function is frozen after it responds and `/tmp` is ephemeral, so a QR shows
+ * but pairing never completes. Host the app (or at least these routes + the
+ * worker) on a persistent process for WhatsApp to work. See DEPLOY.md §4.
  */
+import { rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import makeWASocket, {
   DisconnectReason,
+  jidNormalizedUser,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   type WASocket,
 } from "@whiskeysockets/baileys";
-import qrcode from "qrcode-terminal";
 import pino from "pino";
+import { prisma } from "@/lib/db";
 
-const AUTH_DIR = process.env.WHATSAPP_AUTH_DIR || ".wa-auth";
+const AUTH_ROOT = process.env.WHATSAPP_AUTH_DIR || ".wa-auth";
 const logger = pino({ level: process.env.WHATSAPP_LOG_LEVEL || "silent" });
 
-let sockPromise: Promise<WASocket> | null = null;
+export type WAStatus = "unpaired" | "qr" | "connecting" | "connected";
+
+interface UserWA {
+  sock?: WASocket;
+  status: WAStatus;
+  qr?: string;
+  selfJid?: string;
+  starting?: Promise<void>;
+}
+
+const reg = new Map<string, UserWA>();
 
 export function isWhatsAppEnabled(): boolean {
   return process.env.WHATSAPP_ENABLED === "true";
 }
 
-/** `919812345678` or `+91 98123 45678` → `919812345678@s.whatsapp.net`. */
-export function toJid(numberOrJid: string): string {
-  if (numberOrJid.includes("@")) return numberOrJid;
-  const digits = numberOrJid.replace(/\D/g, "");
-  if (digits.length < 10 || digits.length > 15 || /[a-z]/i.test(numberOrJid)) {
-    throw new Error(
-      `"${numberOrJid}" is not a valid WhatsApp number — use country code + number, digits only (e.g. 919812345678)`,
-    );
+function authDir(userId: string): string {
+  return path.join(AUTH_ROOT, userId);
+}
+function entry(userId: string): UserWA {
+  let e = reg.get(userId);
+  if (!e) {
+    e = { status: existsSync(path.join(authDir(userId), "creds.json")) ? "connecting" : "unpaired" };
+    reg.set(userId, e);
   }
-  return `${digits}@s.whatsapp.net`;
+  return e;
 }
 
-/** True if the number is actually registered on WhatsApp. */
-export async function isOnWhatsApp(numberOrJid: string): Promise<boolean> {
-  const sock = await getSocket({ showQr: false });
-  const results = (await sock.onWhatsApp(toJid(numberOrJid))) ?? [];
-  return Boolean(results[0]?.exists);
-}
+/** Spin up (or reuse) a socket for this user. Resolves once it's open OR a QR is ready. */
+export async function connectUser(userId: string): Promise<UserWA> {
+  const e = entry(userId);
+  if (e.sock && e.status === "connected") return e;
+  if (e.starting) {
+    await e.starting;
+    return e;
+  }
 
-/**
- * Returns a connected socket, (re)connecting as needed. On first run with no
- * saved credentials it prints a QR code to the terminal — scan it from
- * WhatsApp → Linked devices.
- */
-export function getSocket(opts: { showQr?: boolean } = {}): Promise<WASocket> {
-  if (sockPromise) return sockPromise;
-
-  sockPromise = (async () => {
-    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  e.starting = (async () => {
+    const { state, saveCreds } = await useMultiFileAuthState(authDir(userId));
     const { version } = await fetchLatestBaileysVersion();
-
     const sock = makeWASocket({ version, auth: state, logger, printQRInTerminal: false });
+    e.sock = sock;
+    e.status = "connecting";
     sock.ev.on("creds.update", saveCreds);
 
-    await new Promise<void>((resolve, reject) => {
-      sock.ev.on("connection.update", (u) => {
-        const { connection, lastDisconnect, qr } = u;
-        if (qr && (opts.showQr ?? true)) {
-          console.log("\nScan this in WhatsApp → Settings → Linked devices → Link a device:\n");
-          qrcode.generate(qr, { small: true });
-        }
-        if (connection === "open") {
-          console.log("[whatsapp] connected");
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (!settled) {
+          settled = true;
           resolve();
         }
-        if (connection === "close") {
-          const code = (
-            lastDisconnect?.error as { output?: { statusCode?: number } } | undefined
-          )?.output?.statusCode;
-          sockPromise = null;
-          if (code === DisconnectReason.loggedOut) {
-            reject(new Error("WhatsApp logged out — delete the auth dir and re-pair (npm run wa:pair)"));
-          } else {
-            reject(new Error(`WhatsApp connection closed (code ${code ?? "?"}) — will retry on next call`));
+      };
+      sock.ev.on("connection.update", (u) => {
+        const { connection, lastDisconnect, qr } = u;
+        if (qr) {
+          e.qr = qr;
+          e.status = "qr";
+          done(); // caller can now show the QR
+        }
+        if (connection === "open") {
+          e.qr = undefined;
+          e.status = "connected";
+          e.selfJid = sock.user?.id ? jidNormalizedUser(sock.user.id) : undefined;
+          if (e.selfJid) {
+            const digits = e.selfJid.split("@")[0]?.replace(/\D/g, "") ?? null;
+            if (digits) {
+              prisma.user
+                .update({ where: { id: userId }, data: { whatsappJid: digits } })
+                .catch((err) => console.error("[whatsapp] persist number failed", err));
+            }
           }
+          done();
+        }
+        if (connection === "close") {
+          const code = (lastDisconnect?.error as { output?: { statusCode?: number } } | undefined)
+            ?.output?.statusCode;
+          e.sock = undefined;
+          e.starting = undefined;
+          if (code === DisconnectReason.loggedOut) {
+            e.status = "unpaired";
+            void rm(authDir(userId), { recursive: true, force: true });
+          } else {
+            e.status = existsSync(path.join(authDir(userId), "creds.json"))
+              ? "connecting"
+              : "unpaired";
+          }
+          done();
         }
       });
     });
-
-    return sock;
   })();
 
-  // If connecting fails, don't cache the rejected promise.
-  sockPromise.catch(() => {
-    sockPromise = null;
-  });
-
-  return sockPromise;
+  try {
+    await e.starting;
+  } finally {
+    e.starting = undefined;
+  }
+  return e;
 }
 
-export async function sendText(numberOrJid: string, text: string): Promise<void> {
+export function getState(userId: string): { status: WAStatus; qr?: string; number?: string } {
+  const e = entry(userId);
+  return {
+    status: e.status,
+    qr: e.status === "qr" ? e.qr : undefined,
+    number: e.selfJid?.split("@")[0],
+  };
+}
+
+/** Begin (or continue) a pairing attempt; returns as soon as a QR or connection is ready. */
+export async function startPairing(userId: string): Promise<{ status: WAStatus; qr?: string }> {
+  const e = await connectUser(userId);
+  return { status: e.status, qr: e.status === "qr" ? e.qr : undefined };
+}
+
+export async function unlink(userId: string): Promise<void> {
+  const e = reg.get(userId);
+  try {
+    await e?.sock?.logout();
+  } catch {
+    /* ignore */
+  }
+  reg.delete(userId);
+  await rm(authDir(userId), { recursive: true, force: true });
+  await prisma.user.update({ where: { id: userId }, data: { whatsappJid: null } }).catch(() => {});
+}
+
+/** Send text to the user's own WhatsApp (self-chat). Reconnects on demand. */
+export async function sendToUser(userId: string, text: string): Promise<void> {
   if (!isWhatsAppEnabled()) {
     console.warn("[whatsapp] WHATSAPP_ENABLED != true — skipping send");
     return;
   }
-  const jid = toJid(numberOrJid);
-  const sock = await getSocket({ showQr: false });
-  const check = ((await sock.onWhatsApp(jid).catch(() => [])) ?? [])[0];
-  if (check && !check.exists) {
-    throw new Error(`${numberOrJid} is not registered on WhatsApp`);
+  let e = entry(userId);
+  if (!e.sock || e.status !== "connected") {
+    if (!existsSync(path.join(authDir(userId), "creds.json"))) {
+      throw new Error("WhatsApp not linked for this user");
+    }
+    e = await connectUser(userId);
   }
-  await sock.sendMessage(jid, { text });
+  if (e.status !== "connected" || !e.sock || !e.selfJid) {
+    throw new Error(`WhatsApp not connected (status: ${e.status})`);
+  }
+  await e.sock.sendMessage(e.selfJid, { text });
 }
 
-/** For the pairing script — connects, shows the QR, waits, then exits. */
-export async function pair(): Promise<void> {
-  await getSocket({ showQr: true });
-  console.log("[whatsapp] paired. Credentials saved to", AUTH_DIR);
+export function isLinked(userId: string): boolean {
+  return existsSync(path.join(authDir(userId), "creds.json"));
 }

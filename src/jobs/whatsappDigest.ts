@@ -1,22 +1,19 @@
 /**
- * Push the daily digest to WhatsApp for every user who has linked a number
- * (`User.whatsappJid`). Composition of the tuned briefing pipeline + the
- * WhatsApp channel — runs on the worker, not on Vercel.
+ * Push the daily digest to WhatsApp for every user who has linked their number
+ * from the dashboard. Composition of the tuned briefing pipeline + the per-user
+ * WhatsApp channel — runs on the worker (or any persistent server), not Vercel.
  */
 import { endOfDay, startOfDay } from "date-fns";
 import { prisma, scopedDb } from "@/lib/db";
 import { generateBriefing } from "@/jobs/morningBriefing";
 import { formatDigest } from "@/integrations/whatsapp/format";
-import { isWhatsAppEnabled, sendText } from "@/integrations/whatsapp/client";
+import { isWhatsAppEnabled, isLinked, sendToUser } from "@/integrations/whatsapp/client";
 
 export async function sendWhatsAppDigest(userId: string): Promise<{ sent: boolean; reason?: string }> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { name: true, whatsappJid: true },
-  });
-  if (!user?.whatsappJid) return { sent: false, reason: "no whatsappJid" };
   if (!isWhatsAppEnabled()) return { sent: false, reason: "WHATSAPP_ENABLED != true" };
+  if (!isLinked(userId)) return { sent: false, reason: "WhatsApp not linked" };
 
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
   const db = scopedDb(userId);
   const now = new Date();
 
@@ -30,7 +27,7 @@ export async function sendWhatsAppDigest(userId: string): Promise<{ sent: boolea
   ]);
 
   const text = formatDigest({
-    name: user.name,
+    name: user?.name ?? null,
     date: now,
     agenda: events.map((e) => ({
       start: e.startTime,
@@ -40,7 +37,7 @@ export async function sendWhatsAppDigest(userId: string): Promise<{ sent: boolea
     items: briefing.items,
   });
 
-  await sendText(user.whatsappJid, text);
+  await sendToUser(userId, text);
   return { sent: true };
 }
 
@@ -49,11 +46,9 @@ export async function sendWhatsAppDigestAllUsers(): Promise<void> {
     console.info("[jobs/whatsappDigest] WHATSAPP_ENABLED != true — skipping");
     return;
   }
-  const users = await prisma.user.findMany({
-    where: { whatsappJid: { not: null } },
-    select: { id: true },
-  });
+  const users = await prisma.user.findMany({ select: { id: true } });
   for (const { id } of users) {
+    if (!isLinked(id)) continue;
     try {
       const r = await sendWhatsAppDigest(id);
       console.info(`[jobs/whatsappDigest] user ${id}: ${r.sent ? "sent" : `skipped (${r.reason})`}`);

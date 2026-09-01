@@ -1,10 +1,42 @@
 /**
- * One-time WhatsApp pairing.  Run:  npm run wa:pair
- * Prints a QR code — scan it from WhatsApp → Settings → Linked devices.
- * Credentials are saved to WHATSAPP_AUTH_DIR (default .wa-auth/) and reused after.
+ * CLI WhatsApp pairing for one user (the browser flow at /whatsapp is the normal
+ * way). Prints a QR to the terminal — scan from WhatsApp → Linked devices.
+ *
+ *   npm run wa:pair -- <userId|email>
  */
-import { pair } from "@/integrations/whatsapp/client";
+import qrcodeTerminal from "qrcode-terminal";
+import { prisma } from "@/lib/db";
+import { connectUser, getState } from "@/integrations/whatsapp/client";
 
-await pair();
-console.log("Done. Keep the .wa-auth directory — deleting it forces a re-pair.");
-process.exit(0);
+const arg = process.argv[2];
+if (!arg) {
+  console.error("usage: npm run wa:pair -- <userId|email>");
+  process.exit(1);
+}
+
+const user = await prisma.user.findFirst({
+  where: { OR: [{ id: arg }, { email: arg }] },
+  select: { id: true, email: true },
+});
+if (!user) {
+  console.error(`no user matching "${arg}"`);
+  process.exit(1);
+}
+
+console.log(`Pairing WhatsApp for ${user.email} …`);
+let shown = false;
+const timer = setInterval(() => {
+  const s = getState(user.id);
+  if (s.status === "qr" && s.qr && !shown) {
+    shown = true;
+    console.log("\nScan from WhatsApp → Settings → Linked devices → Link a device:\n");
+    qrcodeTerminal.generate(s.qr, { small: true });
+  }
+  if (s.status === "connected") {
+    console.log(`\n✅ linked to +${s.number}`);
+    clearInterval(timer);
+    process.exit(0);
+  }
+}, 1000);
+
+await connectUser(user.id);

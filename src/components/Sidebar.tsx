@@ -15,6 +15,7 @@ const NAV = [
   { href: "/documents", label: "Documents", icon: "▣" },
   { href: "/agent-runs", label: "Agent Runs", icon: "⟡" },
   { href: "/connections", label: "Connections", icon: "⇄" },
+  { href: "/whatsapp", label: "WhatsApp", icon: "▨" },
   { href: "/audit-log", label: "Audit Log", icon: "≣" },
   { href: "/settings", label: "Settings", icon: "⚙" },
 ];
