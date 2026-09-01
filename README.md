@@ -81,6 +81,10 @@ cp .env.example .env      # fill GOOGLE_CLIENT_* + GEMINI_API_KEY
 docker compose up --build # db + redis + web (:3000) + worker; runs migrate deploy on boot
 ```
 
+## Deploy (Vercel + Supabase)
+See [`DEPLOY.md`](DEPLOY.md) — Supabase Postgres setup, required Vercel env vars, and
+background-worker hosting options (Vercel doesn't run the BullMQ worker process).
+
 ## Verify
 ```bash
 npm run typecheck   # tsc --noEmit
