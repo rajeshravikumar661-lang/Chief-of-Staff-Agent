@@ -16,6 +16,7 @@ COPY . .
 RUN npx prisma generate
 # Build-time env is only needed to satisfy module init; real values come at runtime.
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DOCKER_STANDALONE_BUILD=1
 RUN npm run build
 
 # ---- runtime ----
