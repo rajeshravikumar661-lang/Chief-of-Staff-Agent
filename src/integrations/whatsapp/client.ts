@@ -28,7 +28,19 @@ export function isWhatsAppEnabled(): boolean {
 export function toJid(numberOrJid: string): string {
   if (numberOrJid.includes("@")) return numberOrJid;
   const digits = numberOrJid.replace(/\D/g, "");
+  if (digits.length < 10 || digits.length > 15 || /[a-z]/i.test(numberOrJid)) {
+    throw new Error(
+      `"${numberOrJid}" is not a valid WhatsApp number — use country code + number, digits only (e.g. 919812345678)`,
+    );
+  }
   return `${digits}@s.whatsapp.net`;
+}
+
+/** True if the number is actually registered on WhatsApp. */
+export async function isOnWhatsApp(numberOrJid: string): Promise<boolean> {
+  const sock = await getSocket({ showQr: false });
+  const results = (await sock.onWhatsApp(toJid(numberOrJid))) ?? [];
+  return Boolean(results[0]?.exists);
 }
 
 /**
@@ -87,8 +99,13 @@ export async function sendText(numberOrJid: string, text: string): Promise<void>
     console.warn("[whatsapp] WHATSAPP_ENABLED != true — skipping send");
     return;
   }
+  const jid = toJid(numberOrJid);
   const sock = await getSocket({ showQr: false });
-  await sock.sendMessage(toJid(numberOrJid), { text });
+  const check = ((await sock.onWhatsApp(jid).catch(() => [])) ?? [])[0];
+  if (check && !check.exists) {
+    throw new Error(`${numberOrJid} is not registered on WhatsApp`);
+  }
+  await sock.sendMessage(jid, { text });
 }
 
 /** For the pairing script — connects, shows the QR, waits, then exits. */

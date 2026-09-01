@@ -27,7 +27,9 @@ export async function PUT(request: Request) {
     return err("VALIDATION_ERROR", parsed.error.issues[0]?.message ?? "Invalid body", 400);
   }
   const digits = parsed.data.number.replace(/\D/g, "");
-  if (digits.length < 8) return err("VALIDATION_ERROR", "Enter a full number with country code", 400);
+  if (digits.length < 10 || digits.length > 15 || /x/i.test(parsed.data.number)) {
+    return err("VALIDATION_ERROR", "Enter a real number: country code + number, digits only", 400);
+  }
   await prisma.user.update({
     where: { id: u.userId },
     data: { whatsappJid: digits, digestHour: parsed.data.digestHour ?? null },

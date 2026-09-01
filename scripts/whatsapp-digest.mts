@@ -19,7 +19,12 @@ if (!arg) {
     console.error(`no user matching "${arg}"`);
     process.exit(1);
   }
-  const r = await sendWhatsAppDigest(user.id);
-  console.log(`${user.email}: ${r.sent ? "sent" : `skipped (${r.reason})`}`);
+  try {
+    const r = await sendWhatsAppDigest(user.id);
+    console.log(`${user.email}: ${r.sent ? "✅ sent" : `skipped (${r.reason})`}`);
+  } catch (e) {
+    console.error(`${user.email}: ❌ ${e instanceof Error ? e.message : e}`);
+    process.exit(1);
+  }
 }
 process.exit(0);
