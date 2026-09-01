@@ -58,7 +58,9 @@ function entry(userId: string): UserWA {
 /** Spin up (or reuse) a socket for this user. Resolves once it's open OR a QR is ready. */
 export async function connectUser(userId: string): Promise<UserWA> {
   const e = entry(userId);
-  if (e.sock && e.status === "connected") return e;
+  // A live socket already exists (connected, or mid-pairing with a QR shown) —
+  // never open a second one for the same user.
+  if (e.sock && (e.status === "connected" || e.status === "qr")) return e;
   if (e.starting) {
     await e.starting;
     return e;
@@ -130,6 +132,17 @@ export async function connectUser(userId: string): Promise<UserWA> {
 
 export function getState(userId: string): { status: WAStatus; qr?: string; number?: string } {
   const e = entry(userId);
+
+  // Self-heal: a linked user whose in-memory socket died (process restart,
+  // Render free-tier spin-down, etc.) shows "connecting" forever unless
+  // someone re-triggers a connection. Kick one off in the background so the
+  // dashboard reconnects on its own instead of requiring a manual re-pair.
+  if (e.status === "connecting" && !e.sock && !e.starting) {
+    void connectUser(userId).catch((err) =>
+      console.error(`[whatsapp] background reconnect failed for ${userId}:`, err),
+    );
+  }
+
   return {
     status: e.status,
     qr: e.status === "qr" ? e.qr : undefined,
