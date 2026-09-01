@@ -182,6 +182,28 @@ export interface SearchResponse {
   people: { id: string; name: string; email: string | null }[];
 }
 
+// --- Flagship "handle this" workflow ---------------------------------------
+
+export interface FlagshipBriefing {
+  subject: string;
+  headline: string;
+  people: { name: string; role?: string; lastContact?: string }[];
+  meeting: { title: string; when: string; attendees: string[] } | null;
+  openQuestions: string[];
+  relevantDocs: { title: string; url?: string }[];
+  priorCommitments: string[];
+  talkingPoints: string[];
+  suggestedActions: { label: string; goal: string }[];
+  missingInfo: string[];
+}
+export interface HandleRequest {
+  subject: string;
+}
+export interface HandleResponse {
+  runId: string;
+  briefing: FlagshipBriefing;
+}
+
 export interface ApiError {
   error: { code: string; message: string };
 }

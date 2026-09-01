@@ -28,6 +28,7 @@ import {
 } from "date-fns";
 
 import { scorePriority } from "@/agent/priorityEngine";
+import { assessReply } from "@/agent/emailSignal";
 import type { PrioritySignal } from "@/agent/types";
 import { prisma, scopedDb } from "@/lib/db";
 import { sweepOverdueCommitments } from "@/jobs/commitments";
@@ -40,7 +41,6 @@ import type {
 
 const MAX_ITEMS = 10;
 const IMPORTANT_MEETING_RE = /investor|board|review|1:1|1-on-1|one[- ]on[- ]one|kickoff|all[- ]hands/i;
-const LIST_SENDER_RE = /no-?reply|do-?not-?reply|notifications?|mailer-daemon|postmaster|automated|@.*\b(list|lists|updates|newsletter)\b/i;
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -199,25 +199,27 @@ async function emailCandidates(db: Db, now: Date): Promise<Candidate[]> {
       take: 60,
     });
     return messages
-      .filter((m) => m.sender && !LIST_SENDER_RE.test(m.sender))
-      .slice(0, 20)
-      .map((m): Candidate => {
+      .map((m) => ({ m, reply: assessReply(m) }))
+      .filter(({ reply }) => reply.needsReply)
+      .sort((a, b) => b.reply.score - a.reply.score)
+      .slice(0, 10)
+      .map(({ m, reply }): Candidate => {
         const who = senderName(m.sender);
         const subject = m.subject?.trim() || "(no subject)";
         const ageHrs = differenceInHours(now, m.timestamp);
         return {
           id: `email:${m.id}`,
           kind: "email",
-          title: `Unanswered: ${subject}`,
-          detail: `From ${who} · ${fmt(m.timestamp)}${m.snippet ? ` · ${m.snippet.slice(0, 140)}` : ""}`,
+          title: `Reply needed: ${subject}`,
+          detail: `From ${who} · ${fmt(m.timestamp)} · ${reply.reasons.join(", ")}${m.snippet ? ` · ${m.snippet.slice(0, 120)}` : ""}`,
           refUrl:
             m.provider === "gmail" && m.threadId
               ? `https://mail.google.com/mail/u/0/#inbox/${m.threadId}`
               : undefined,
           signal: {
             urgency: ageHrs <= 24 ? 0.7 : 0.5,
-            importance: 0.6,
-            relationshipImportance: 0.6,
+            importance: 0.4 + reply.score * 0.5,
+            relationshipImportance: reply.score,
             deadline: null,
           },
           suggestedActions: [
