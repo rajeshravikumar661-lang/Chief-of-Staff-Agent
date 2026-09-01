@@ -18,10 +18,24 @@ BullMQ + Redis · LLM behind a provider abstraction (Claude default, OpenAI seco
 ```bash
 npm install
 cp .env.example .env          # fill in the values below
-npx prisma migrate dev        # create the schema
-npm run seed                  # optional: a demo user
+
+# local Postgres (Homebrew postgresql@16):
+brew install postgresql@16
+npm run setup                 # start db + create it + migrate + generate + seed
+
 npm run dev                   # http://localhost:3000
 npm run worker                # background jobs (briefings, sync, reminders) — separate process
+```
+
+Already have a Postgres? Skip `npm run setup`, point `DATABASE_URL` at it, and run
+`npx prisma migrate dev && npm run seed`.
+
+DB lifecycle: `npm run db:start` / `db:stop` / `db:reset`.
+
+Smoke check once it's up:
+```bash
+curl localhost:3000/api/health            # {"status":"ok"}
+curl localhost:3000/api/auth/providers    # google provider registered
 ```
 
 ### Required env
