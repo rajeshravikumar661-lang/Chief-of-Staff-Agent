@@ -3,28 +3,46 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { api } from "@/lib/api";
-import { BriefingView } from "@/components/BriefingView";
 import { AgentRunCard } from "@/components/AgentRunCard";
-import { PriorityBadge } from "@/components/PriorityBadge";
-import type { Priority } from "@/lib/types";
+import { ChiefOfStaffSummary } from "@/components/ChiefOfStaffSummary";
+import { AttentionList } from "@/components/AttentionList";
+import { AgendaTimeline } from "@/components/AgendaTimeline";
+import type { TodayResponse } from "@/lib/types";
 
-const PRIORITY_ORDER: Record<Priority, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+function buildDaySummary(today: TodayResponse | undefined): string {
+  if (!today) return "";
+
+  const meetingCount = today.agenda.length;
+  const criticalCount = today.needsAttention.filter((a) => a.priority === "CRITICAL").length;
+  const attentionCount = today.needsAttention.length;
+  const commitmentCount = today.followUps.length;
+
+  const parts: string[] = [];
+
+  if (meetingCount > 0) {
+    const next = [...today.agenda].sort((a, b) => a.time.localeCompare(b.time))[0];
+    parts.push(`you have ${meetingCount} meeting${meetingCount === 1 ? "" : "s"} today, starting with ${next.title} at ${next.time}`);
+  } else {
+    parts.push("your calendar is clear today");
+  }
+
+  if (criticalCount > 0) {
+    parts.push(`${criticalCount} item${criticalCount === 1 ? " needs" : "s need"} a decision`);
+  } else if (attentionCount > 0) {
+    parts.push("a few things could use a look");
+  }
+
+  if (commitmentCount > 0) {
+    parts.push(`${commitmentCount} commitment${commitmentCount === 1 ? "" : "s"} coming due`);
+  }
+
+  const sentence = parts.join(", ");
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1) + ".";
+}
 
 export default function TodayPage() {
-  const { data: today, isLoading: todayLoading, mutate: mutateToday } = useSWR("today", api.today);
-  const { data: briefing, isLoading: briefingLoading, mutate: mutateBriefing } = useSWR("briefing-today", api.briefingToday);
-  const [refreshing, setRefreshing] = useState(false);
+  const { data: today, error: todayError, isLoading: todayLoading, mutate: mutateToday } = useSWR("today", api.today);
   const [startedRunIds, setStartedRunIds] = useState<string[]>([]);
-
-  async function refreshBriefing() {
-    setRefreshing(true);
-    try {
-      await api.briefingGenerate();
-      await mutateBriefing();
-    } finally {
-      setRefreshing(false);
-    }
-  }
 
   async function runSuggestedAction(goal: string | undefined) {
     if (!goal) return;
@@ -33,127 +51,105 @@ export default function TodayPage() {
     mutateToday();
   }
 
-  const sortedAgenda = today?.agenda ? [...today.agenda].sort((a, b) => a.time.localeCompare(b.time)) : [];
-  const sortedAttention = today?.needsAttention
-    ? [...today.needsAttention].sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
-    : [];
+  if (todayError) {
+    return (
+      <div className="rounded-lg border border-dashed border-hairline p-8 text-center">
+        <p className="text-sm text-ink">Couldn&apos;t load your day.</p>
+        <p className="mt-1 text-sm text-ink-faint">{todayError instanceof Error ? todayError.message : "Something went wrong."}</p>
+        <button
+          onClick={() => mutateToday()}
+          className="mt-3 rounded-md border border-hairline-strong px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-paper-raised"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  const agenda = today?.agenda ?? [];
+  const attention = today?.needsAttention ?? [];
+  const followUps = today?.followUps ?? [];
+  const suggestedActions = today?.suggestedActions ?? [];
+  const recentRuns = today?.recentRuns ?? [];
 
   return (
     <div className="space-y-10 pb-16">
-      {/* Greeting */}
-      <div>
-        <h1 className="font-serif text-3xl font-semibold text-ink">
-          {todayLoading ? "Good morning" : today?.greeting ?? "Good morning"}
-        </h1>
+      {/* 1. Chief-of-Staff Summary */}
+      <ChiefOfStaffSummary
+        greeting={today?.greeting ?? "Good morning"}
+        summary={buildDaySummary(today)}
+        stats={{ meetings: agenda.length, attention: attention.length, commitments: followUps.length }}
+        loading={todayLoading}
+      />
+
+      {/* 2. Needs Your Decision */}
+      <section>
+        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Needs your decision</h2>
+        <AttentionList items={attention} loading={todayLoading} />
+      </section>
+
+      {/* 3 & 4. Agenda (main) + Follow-ups / Suggested actions (side on desktop) */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
+        <section>
+          <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Today&apos;s agenda</h2>
+          <AgendaTimeline agenda={agenda} attention={attention} loading={todayLoading} />
+        </section>
+
+        <div className="space-y-8">
+          <section>
+            <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Follow-ups</h2>
+            {todayLoading ? (
+              <div className="h-12 animate-pulse rounded-lg border border-hairline bg-paper-raised" />
+            ) : followUps.length === 0 ? (
+              <p className="text-sm text-ink-faint">No open follow-ups — you&apos;re all caught up.</p>
+            ) : (
+              <ul className="space-y-2">
+                {followUps.map((item) => (
+                  <li key={item.id} className="rounded-lg border border-hairline bg-paper-raised p-3 text-sm text-ink">
+                    {item.text}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Suggested actions</h2>
+            {todayLoading ? (
+              <div className="h-8 animate-pulse rounded-md border border-hairline bg-paper-raised" />
+            ) : suggestedActions.length === 0 ? (
+              <p className="text-sm text-ink-faint">No suggestions right now.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {suggestedActions.map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => runSuggestedAction(action.goal)}
+                    disabled={!action.goal}
+                    className="rounded-md border border-hairline-strong px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-paper-raised disabled:opacity-50"
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {startedRunIds.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {startedRunIds.map((id) => (
+                  <AgentRunCard key={id} runId={id} collapsedByDefault />
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
 
-      {/* Briefing */}
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">Briefing</h2>
-          <button
-            onClick={refreshBriefing}
-            disabled={refreshing}
-            className="rounded-md border border-hairline-strong px-2.5 py-1 text-xs font-medium text-ink-soft transition hover:bg-paper-raised disabled:opacity-50"
-          >
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </button>
-        </div>
-        {briefingLoading && <p className="text-sm text-ink-faint">Preparing your briefing…</p>}
-        {briefing && (
-          <BriefingView briefing={briefing} onRunAction={(goal) => runSuggestedAction(goal)} />
-        )}
-      </section>
-
-      {/* Agenda */}
-      <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Today&apos;s agenda</h2>
-        {sortedAgenda.length === 0 ? (
-          <p className="text-sm text-ink-faint">Nothing on the calendar today.</p>
-        ) : (
-          <ul className="divide-y divide-hairline rounded-lg border border-hairline bg-paper-raised">
-            {sortedAgenda.map((item, i) => (
-              <li key={item.eventId ?? `${item.time}-${i}`} className="flex items-baseline gap-4 px-4 py-3">
-                <span className="w-14 shrink-0 text-sm tabular-nums text-ink-soft">{item.time}</span>
-                <span className="text-sm text-ink">{item.title}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Needs attention */}
-      <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Needs attention</h2>
-        {sortedAttention.length === 0 ? (
-          <p className="text-sm text-ink-faint">Nothing urgent right now.</p>
-        ) : (
-          <ul className="space-y-2">
-            {sortedAttention.map((item) => (
-              <li key={item.id} className="flex items-start gap-3 rounded-lg border border-hairline bg-paper-raised p-3">
-                <PriorityBadge priority={item.priority} className="mt-0.5 shrink-0" />
-                <p className="min-w-0 flex-1 text-sm text-ink">{item.text}</p>
-                {item.refUrl && (
-                  <a href={item.refUrl} className="shrink-0 text-xs text-brand underline decoration-dotted">
-                    Open
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Follow-ups */}
-      <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Follow-ups</h2>
-        {!today?.followUps || today.followUps.length === 0 ? (
-          <p className="text-sm text-ink-faint">No open follow-ups — you&apos;re all caught up.</p>
-        ) : (
-          <ul className="space-y-2">
-            {today.followUps.map((item) => (
-              <li key={item.id} className="rounded-lg border border-hairline bg-paper-raised p-3 text-sm text-ink">
-                {item.text}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Suggested actions */}
-      <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Suggested actions</h2>
-        {!today?.suggestedActions || today.suggestedActions.length === 0 ? (
-          <p className="text-sm text-ink-faint">No suggestions right now.</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {today.suggestedActions.map((action) => (
-              <button
-                key={action.id}
-                onClick={() => runSuggestedAction(action.goal)}
-                disabled={!action.goal}
-                className="rounded-md border border-hairline-strong px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-paper-raised disabled:opacity-50"
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
-        )}
-        {startedRunIds.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {startedRunIds.map((id) => (
-              <AgentRunCard key={id} runId={id} collapsedByDefault />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Recent agent activity */}
-      {today?.recentRuns && today.recentRuns.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Recent agent activity</h2>
+      {/* 5. Recent agent activity — secondary, low visual weight */}
+      {recentRuns.length > 0 && (
+        <section className="border-t border-hairline pt-6 opacity-90">
+          <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-faint">Recent agent activity</h2>
           <div className="space-y-2">
-            {today.recentRuns.map((r) => (
+            {recentRuns.map((r) => (
               <AgentRunCard key={r.id} runId={r.id} collapsedByDefault linkToDetail />
             ))}
           </div>
