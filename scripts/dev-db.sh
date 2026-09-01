@@ -13,9 +13,13 @@ export LC_ALL="${LC_ALL:-en_US.UTF-8}" LANG="${LANG:-en_US.UTF-8}"
 
 case "${1:-status}" in
   start)
-    "$PG_BIN/pg_ctl" -D "$PG_DATA" -l "$PG_DATA/server.log" start || true
-    sleep 1
-    "$PG_BIN/pg_isready" || true
+    if "$PG_BIN/pg_isready" -q 2>/dev/null; then
+      echo "postgres already running"
+    else
+      "$PG_BIN/pg_ctl" -D "$PG_DATA" -l "$PG_DATA/server.log" start
+      sleep 1
+      "$PG_BIN/pg_isready"
+    fi
     ;;
   stop)
     "$PG_BIN/pg_ctl" -D "$PG_DATA" stop || true

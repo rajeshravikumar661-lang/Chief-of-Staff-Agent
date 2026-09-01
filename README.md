@@ -15,22 +15,29 @@ BullMQ + Redis · LLM behind a provider abstraction — `LLM_PROVIDER` = `gemini
 
 ## Setup
 
+**One command** — installs deps, installs/starts Postgres, prompts for the 3 secrets
+(Groq + Google OAuth), migrates, seeds, typechecks, tests:
+
 ```bash
-npm install
-cp .env.example .env          # fill in the values below
-
-# local Postgres (Homebrew postgresql@16):
-brew install postgresql@16
-npm run setup                 # start db + create it + migrate + generate + seed
-
-npm run dev                   # http://localhost:3000
-npm run worker                # background jobs (briefings, sync, reminders) — separate process
+npm run quickstart
+npm run dev            # then open http://localhost:3000
 ```
 
-Already have a Postgres? Skip `npm run setup`, point `DATABASE_URL` at it, and run
-`npx prisma migrate dev && npm run seed`.
+Re-run `npm run quickstart` any time — it only asks for values still missing from `.env`.
 
+<details><summary>Manual steps (if you'd rather not use the script)</summary>
+
+```bash
+npm install
+cp .env.example .env          # fill GROQ_API_KEY + GOOGLE_CLIENT_ID/SECRET
+brew install postgresql@16
+npm run setup                 # start db + create + migrate + generate + seed
+npm run dev
+npm run worker                # background jobs — separate process (optional)
+```
+Already have a Postgres? Point `DATABASE_URL` at it and run `npx prisma migrate dev && npm run seed`.
 DB lifecycle: `npm run db:start` / `db:stop` / `db:reset`.
+</details>
 
 Smoke check once it's up:
 ```bash

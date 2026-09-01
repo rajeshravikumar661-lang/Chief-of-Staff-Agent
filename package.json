@@ -20,7 +20,8 @@
     "db:stop": "scripts/dev-db.sh stop",
     "db:create": "scripts/dev-db.sh create",
     "db:reset": "scripts/dev-db.sh reset && prisma migrate reset --force",
-    "setup": "scripts/dev-db.sh start && scripts/dev-db.sh create && prisma migrate dev && prisma generate && tsx prisma/seed.ts"
+    "setup": "scripts/dev-db.sh start && scripts/dev-db.sh create && prisma migrate dev && prisma generate && tsx prisma/seed.ts",
+    "quickstart": "bash scripts/quickstart.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
