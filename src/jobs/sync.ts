@@ -12,6 +12,8 @@ import { syncGmail } from "@/integrations/gmail";
 import { syncSlack } from "@/integrations/slack";
 import { syncGithub } from "@/integrations/github";
 import { syncNotion } from "@/integrations/notion";
+import { syncLinear } from "@/integrations/linear";
+import { syncGworkspace } from "@/integrations/gworkspace";
 import { prisma } from "@/lib/db";
 import { syncPeople } from "@/jobs/relationships";
 import { sweepOverdueCommitments } from "@/jobs/commitments";
@@ -23,6 +25,8 @@ export interface SyncCounts {
   slack: number;
   github: number;
   notion: number;
+  linear: number;
+  gworkspace: number;
   people: number;
   commitmentsOverdue: number;
 }
@@ -51,14 +55,17 @@ function toCount(value: unknown): number {
 
 /** Sync every connected source for one user, then refresh derived data. Never throws. */
 export async function syncAll(userId: string): Promise<SyncCounts> {
-  const [gmail, calendar, drive, slack, github, notion] = await Promise.allSettled([
-    Promise.resolve().then(() => syncGmail(userId)),
-    Promise.resolve().then(() => syncCalendar(userId)),
-    Promise.resolve().then(() => syncDrive(userId)),
-    Promise.resolve().then(() => syncSlack(userId)),
-    Promise.resolve().then(() => syncGithub(userId)),
-    Promise.resolve().then(() => syncNotion(userId)),
-  ]);
+  const [gmail, calendar, drive, slack, github, notion, linear, gworkspace] =
+    await Promise.allSettled([
+      Promise.resolve().then(() => syncGmail(userId)),
+      Promise.resolve().then(() => syncCalendar(userId)),
+      Promise.resolve().then(() => syncDrive(userId)),
+      Promise.resolve().then(() => syncSlack(userId)),
+      Promise.resolve().then(() => syncGithub(userId)),
+      Promise.resolve().then(() => syncNotion(userId)),
+      Promise.resolve().then(() => syncLinear(userId)),
+      Promise.resolve().then(() => syncGworkspace(userId)),
+    ]);
 
   const resolve = (
     result: PromiseSettledResult<unknown>,
@@ -82,6 +89,8 @@ export async function syncAll(userId: string): Promise<SyncCounts> {
     slack: resolve(slack, "slack"),
     github: resolve(github, "github"),
     notion: resolve(notion, "notion"),
+    linear: resolve(linear, "linear"),
+    gworkspace: resolve(gworkspace, "gworkspace"),
     people: resolve(people, "people"),
     commitmentsOverdue: resolve(overdue, "commitments"),
   };

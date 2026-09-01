@@ -47,8 +47,18 @@ export function taskToDTO(t: Task): TaskDTO {
   };
 }
 
-export const GOOGLE_PROVIDERS = ["gmail", "calendar", "drive"] as const;
-export const ALL_PROVIDERS = ["gmail", "calendar", "drive", "slack", "github", "notion"] as const;
+export const GOOGLE_PROVIDERS = ["gmail", "calendar", "drive", "gworkspace"] as const;
+export const OAUTH_M6_PROVIDERS = ["slack", "github", "notion", "linear"] as const;
+export const ALL_PROVIDERS = [
+  "gmail",
+  "calendar",
+  "drive",
+  "gworkspace",
+  "slack",
+  "github",
+  "notion",
+  "linear",
+] as const;
 export type KnownProvider = (typeof ALL_PROVIDERS)[number];
 
 export function isKnownProvider(p: string): p is KnownProvider {

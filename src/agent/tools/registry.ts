@@ -16,6 +16,8 @@ import { driveTools } from "@/integrations/drive";
 import { slackTools } from "@/integrations/slack";
 import { githubTools } from "@/integrations/github";
 import { notionTools } from "@/integrations/notion";
+import { linearTools } from "@/integrations/linear";
+import { gworkspaceTools } from "@/integrations/gworkspace";
 
 const ALL_TOOLS: Tool[] = [
   ...gmailTools,
@@ -24,6 +26,8 @@ const ALL_TOOLS: Tool[] = [
   ...slackTools,
   ...githubTools,
   ...notionTools,
+  ...linearTools,
+  ...gworkspaceTools,
 ];
 
 const TOOLS_BY_NAME: Map<string, Tool> = (() => {

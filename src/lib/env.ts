@@ -89,4 +89,6 @@ export const env = {
   githubClientSecret: () => opt("GITHUB_CLIENT_SECRET"),
   notionClientId: () => opt("NOTION_CLIENT_ID"),
   notionClientSecret: () => opt("NOTION_CLIENT_SECRET"),
+  linearClientId: () => opt("LINEAR_CLIENT_ID"),
+  linearClientSecret: () => opt("LINEAR_CLIENT_SECRET"),
 };

@@ -19,6 +19,10 @@ export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/calendar.readonly",
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/drive.readonly",
+  // Google Workspace read (Sheets / Docs / Slides)
+  "https://www.googleapis.com/auth/spreadsheets.readonly",
+  "https://www.googleapis.com/auth/documents.readonly",
+  "https://www.googleapis.com/auth/presentations.readonly",
 ];
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
