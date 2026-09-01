@@ -504,15 +504,13 @@ async function markFailed(userId: string, runId: string, message: string): Promi
 async function bestEffortCommitments(userId: string, snippetText: string): Promise<void> {
   if (!snippetText) return;
   try {
-    const mod = (await import("@/agent/commitmentDetection")) as unknown as {
-      detectCommitments?: (text: string, ctx: { userId: string }) => Promise<unknown[]>;
-      persistCommitments?: (userId: string, drafts: unknown[]) => Promise<unknown>;
-    };
-    if (!mod.detectCommitments || !mod.persistCommitments) return;
-    const drafts = await mod.detectCommitments(snippetText, { userId });
-    if (Array.isArray(drafts) && drafts.length > 0) {
-      await mod.persistCommitments(userId, drafts);
-    }
+    const { detectCommitments, persistCommitments } = await import("@/agent/commitmentDetection");
+    const drafts = await detectCommitments({
+      userId,
+      texts: [{ body: snippetText, source: "agent-context" }],
+      llm: getLLM(),
+    });
+    if (drafts.length > 0) await persistCommitments(userId, drafts);
   } catch (err) {
     console.warn(
       "[orchestrator] commitment detection skipped:",
