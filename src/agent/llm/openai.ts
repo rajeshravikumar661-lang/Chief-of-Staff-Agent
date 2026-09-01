@@ -20,20 +20,45 @@ const DEFAULT_MAX_TOKENS = 4096;
  * OpenAI implementation of {@link LLMProvider}. Agent code must reach this only
  * through `getLLM()` — never by importing the OpenAI SDK directly.
  */
+export interface OpenAICompatibleOptions {
+  /** Provider label surfaced in run logs / metering. */
+  name?: string;
+  /** Override base URL for OpenAI-compatible gateways (e.g. Groq). */
+  baseURL?: string;
+  /** Key resolver + the env var name to cite when it is missing. */
+  apiKey?: () => string;
+  keyEnvName?: string;
+}
+
+/**
+ * OpenAI implementation of {@link LLMProvider}, also used for any OpenAI-compatible
+ * gateway (Groq) via {@link OpenAICompatibleOptions}. Agent code must reach this
+ * only through `getLLM()` — never by importing the OpenAI SDK directly.
+ */
 export class OpenAIProvider implements LLMProvider {
-  public readonly name = "openai";
+  public readonly name: string;
 
   private client: OpenAI | undefined;
+  private readonly baseURL?: string;
+  private readonly resolveKey: () => string;
+  private readonly keyEnvName: string;
+
+  constructor(opts: OpenAICompatibleOptions = {}) {
+    this.name = opts.name ?? "openai";
+    this.baseURL = opts.baseURL;
+    this.resolveKey = opts.apiKey ?? (() => env.openaiApiKey());
+    this.keyEnvName = opts.keyEnvName ?? "OPENAI_API_KEY";
+  }
 
   private sdk(): OpenAI {
     if (!this.client) {
-      const apiKey = env.openaiApiKey();
+      const apiKey = this.resolveKey();
       if (!apiKey) {
         throw new Error(
-          "OPENAI_API_KEY is not set — the OpenAI LLM provider is unavailable.",
+          `${this.keyEnvName} is not set — the ${this.name} LLM provider is unavailable.`,
         );
       }
-      this.client = new OpenAI({ apiKey });
+      this.client = new OpenAI({ apiKey, ...(this.baseURL ? { baseURL: this.baseURL } : {}) });
     }
     return this.client;
   }

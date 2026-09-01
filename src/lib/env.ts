@@ -26,16 +26,23 @@ export const env = {
   tokenEncryptionKey: () => req("TOKEN_ENCRYPTION_KEY"),
 
   llmProvider: () =>
-    opt("LLM_PROVIDER", "claude").toLowerCase() as "claude" | "openai" | "gemini",
+    opt("LLM_PROVIDER", "claude").toLowerCase() as
+      | "claude"
+      | "openai"
+      | "gemini"
+      | "groq",
   anthropicApiKey: () => opt("ANTHROPIC_API_KEY"),
   openaiApiKey: () => opt("OPENAI_API_KEY"),
   geminiApiKey: () => opt("GEMINI_API_KEY") || opt("GOOGLE_GENERATIVE_AI_API_KEY"),
+  groqApiKey: () => opt("GROQ_API_KEY"),
   strongModel: () => {
     switch (opt("LLM_PROVIDER", "claude").toLowerCase()) {
       case "openai":
         return opt("OPENAI_STRONG_MODEL", "gpt-4o");
       case "gemini":
         return opt("GEMINI_STRONG_MODEL", "gemini-2.5-flash");
+      case "groq":
+        return opt("GROQ_STRONG_MODEL", "llama-3.3-70b-versatile");
       default:
         return opt("LLM_STRONG_MODEL", "claude-sonnet-5");
     }
@@ -46,6 +53,8 @@ export const env = {
         return opt("OPENAI_CHEAP_MODEL", "gpt-4o-mini");
       case "gemini":
         return opt("GEMINI_CHEAP_MODEL", "gemini-2.5-flash-lite");
+      case "groq":
+        return opt("GROQ_CHEAP_MODEL", "llama-3.1-8b-instant");
       default:
         return opt("LLM_CHEAP_MODEL", "claude-haiku-4-5-20251001");
     }

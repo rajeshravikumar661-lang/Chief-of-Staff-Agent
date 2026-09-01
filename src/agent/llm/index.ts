@@ -23,6 +23,13 @@ function makeProvider(): LLMProvider {
   switch (env.llmProvider()) {
     case "openai":
       return new OpenAIProvider();
+    case "groq":
+      return new OpenAIProvider({
+        name: "groq",
+        baseURL: "https://api.groq.com/openai/v1",
+        apiKey: () => env.groqApiKey(),
+        keyEnvName: "GROQ_API_KEY",
+      });
     case "gemini":
       return new GeminiProvider();
     default:

@@ -8,6 +8,12 @@ describe("pricing", () => {
     expect(priceFor("gemini-2.5-pro").inputPer1M).toBe(1.25);
   });
 
+  it("resolves groq llama models", () => {
+    expect(priceFor("llama-3.1-8b-instant").inputPer1M).toBe(0.05);
+    expect(priceFor("llama-3.3-70b-versatile").inputPer1M).toBe(0.59);
+    expect(priceFor("openai/gpt-oss-120b").outputPer1M).toBe(0.75);
+  });
+
   it("falls back for an unknown model", () => {
     expect(priceFor("some-future-model")).toEqual({ inputPer1M: 3, outputPer1M: 15 });
   });

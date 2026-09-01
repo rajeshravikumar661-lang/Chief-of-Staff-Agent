@@ -22,6 +22,15 @@ const TABLE: ReadonlyArray<readonly [string, ModelPrice]> = [
   ["gemini-2.0-flash-lite", { inputPer1M: 0.075, outputPer1M: 0.3 }],
   ["flash", { inputPer1M: 0.3, outputPer1M: 2.5 }],
   ["gemini-2.5-pro", { inputPer1M: 1.25, outputPer1M: 10 }],
+  // groq (OpenAI-compatible) — more specific ids first.
+  ["llama-3.1-8b", { inputPer1M: 0.05, outputPer1M: 0.08 }],
+  ["llama-3.3-70b", { inputPer1M: 0.59, outputPer1M: 0.79 }],
+  ["llama-4-scout", { inputPer1M: 0.11, outputPer1M: 0.34 }],
+  ["llama-4-maverick", { inputPer1M: 0.2, outputPer1M: 0.6 }],
+  ["gpt-oss-120b", { inputPer1M: 0.15, outputPer1M: 0.75 }],
+  ["gpt-oss-20b", { inputPer1M: 0.1, outputPer1M: 0.5 }],
+  ["kimi-k2", { inputPer1M: 1, outputPer1M: 3 }],
+  ["llama", { inputPer1M: 0.2, outputPer1M: 0.4 }],
 ];
 
 /** Fallback when the model id matches nothing in the table. */
