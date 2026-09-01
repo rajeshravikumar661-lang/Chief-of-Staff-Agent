@@ -9,3 +9,6 @@ next-env.d.ts
 /prisma/dev.db
 /coverage
 tsconfig.tsbuildinfo
+
+# WhatsApp auth (Baileys) — never commit
+.wa-auth/

@@ -11,6 +11,7 @@ import { makeWorker, redisConfigured } from "./queue";
 import { runCommitmentRemindersAllUsers } from "./reminders";
 import { registerSchedules } from "./scheduler";
 import { syncAllUsers } from "./sync";
+import { sendWhatsAppDigestAllUsers } from "./whatsappDigest";
 
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -32,6 +33,9 @@ async function main(): Promise<void> {
     }),
     makeWorker("commitment-reminders", async () => {
       await runCommitmentRemindersAllUsers();
+    }),
+    makeWorker("whatsapp-digest", async () => {
+      await sendWhatsAppDigestAllUsers();
     }),
   ];
 

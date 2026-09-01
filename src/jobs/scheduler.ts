@@ -28,6 +28,7 @@ export async function registerSchedules(): Promise<void> {
   const syncQueue = makeQueue("sync");
   const briefingQueue = makeQueue("morning-briefing");
   const remindersQueue = makeQueue("commitment-reminders");
+  const whatsappQueue = makeQueue("whatsapp-digest");
 
   try {
     await syncQueue.add(
@@ -45,9 +46,18 @@ export async function registerSchedules(): Promise<void> {
       {},
       { jobId: "repeat:commitment-reminders", repeat: { every: EVERY_6_HOURS }, ...commonOpts },
     );
+    if (process.env.WHATSAPP_ENABLED === "true") {
+      await whatsappQueue.add(
+        "whatsapp-digest-all-users",
+        {},
+        { jobId: "repeat:whatsapp-digest", repeat: { pattern: briefingCron }, ...commonOpts },
+      );
+    }
 
     console.info(
-      `[jobs/scheduler] repeatable jobs registered — sync=30m, morning-briefing='${briefingCron}', commitment-reminders=6h`,
+      `[jobs/scheduler] repeatable jobs registered — sync=30m, morning-briefing='${briefingCron}', commitment-reminders=6h${
+        process.env.WHATSAPP_ENABLED === "true" ? `, whatsapp-digest='${briefingCron}'` : ""
+      }`,
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
