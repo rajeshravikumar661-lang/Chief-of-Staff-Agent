@@ -1,9 +1,23 @@
 # Deploying — Vercel + Supabase
 
-This is a prep guide, not an automated script. It doesn't touch any live infra — you
-create the Supabase project and the Vercel project yourself (both require you to sign in),
-then follow the steps below. Nothing here changes local dev: `npm run dev`, `npm run
-quickstart`, demo mode, and Docker Compose all still work exactly as before.
+## Current live status
+
+| Piece | Status |
+|---|---|
+| Vercel project | **Live**: `rajeshravi/chief-of-staff-agent` → https://chief-of-staff-agent-sigma.vercel.app |
+| Supabase project | **Live**: `chief-of-staff-agent` (org `rajeshravikumar661-lang's Org`, region ap-northeast-1 / Tokyo, free tier) |
+| Database schema | **Migrated** — `prisma migrate deploy` applied against Supabase |
+| `DATABASE_URL`, `AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY`, `NEXTAUTH_URL` | **Set** on Vercel (Production) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | **Not set** — sign-in will fail until added (§3) |
+| LLM key (`GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) | **Not set** — agent runs will fail until added |
+| Background worker (§4) | **Not deployed** — briefing/sync jobs no-op until you pick an option |
+
+`curl https://chief-of-staff-agent-sigma.vercel.app/api/health` → `{"status":"ok"}`.
+`/today` correctly 307s to `/signin` unauthenticated — auth is enforced, not bypassed.
+
+The rest of this doc is the reference for the two pieces above and for adding a worker.
+Nothing here changes local dev: `npm run dev`, `npm run quickstart`, demo mode, and
+Docker Compose all still work exactly as before.
 
 ## 1. Architecture for this deployment target
 
@@ -19,6 +33,10 @@ Drive sync, reminders) needs somewhere else to run. Decide that separately (§4)
 app works without it, just without background automation (see §4, option C).
 
 ## 2. Supabase (Postgres)
+
+**Done** — project `chief-of-staff-agent` exists (ap-northeast-1 / Tokyo, free tier),
+schema migrated. Steps below are the reference for what was done / what to do if you
+ever need a second environment (e.g. staging).
 
 1. Create a project at supabase.com (any region close to where Vercel will run).
 2. Project Settings → Database → Connection string. Supabase gives you two:
@@ -49,18 +67,27 @@ app works without it, just without background automation (see §4, option C).
 3. Environment variables (Project Settings → Environment Variables) — same names as
    `.env.example`, values now pointing at real infra:
 
-   | var | production value |
-   |---|---|
-   | `DATABASE_URL` | Supabase pooled (or direct, see §2.3) connection string |
-   | `NEXTAUTH_URL` | your Vercel production URL, e.g. `https://your-app.vercel.app` |
-   | `AUTH_SECRET` | `openssl rand -base64 32` — a **different** value than local dev |
-   | `TOKEN_ENCRYPTION_KEY` | `openssl rand -base64 32` — a **different** value than local dev |
-   | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | same Google Cloud OAuth client, or a separate prod client — either way, add `https://your-app.vercel.app/api/auth/callback/google` to its Authorized redirect URIs (Google Cloud Console → Credentials) |
-   | LLM key | `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` matching `LLM_PROVIDER` |
-   | `REDIS_URL` | leave unset unless you've set up a worker host + managed Redis (§4) |
-   | `NEXT_PUBLIC_DEMO_MODE` | leave **unset** in production — see safety note below |
+   | var | production value | status |
+   |---|---|---|
+   | `DATABASE_URL` | Supabase **pooled** connection string (port 6543, `?pgbouncer=true`) | ✅ set |
+   | `NEXTAUTH_URL` | `https://chief-of-staff-agent-sigma.vercel.app` | ✅ set |
+   | `AUTH_SECRET` | generated via `openssl rand -base64 32` | ✅ set |
+   | `TOKEN_ENCRYPTION_KEY` | generated via `openssl rand -base64 32` | ✅ set |
+   | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | from Google Cloud Console → Credentials. Add `https://chief-of-staff-agent-sigma.vercel.app/api/auth/callback/google` to that OAuth client's Authorized redirect URIs | ❌ **needed from you** |
+   | LLM key | `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` matching `LLM_PROVIDER` | ❌ **needed from you** |
+   | `REDIS_URL` | leave unset unless you've set up a worker host + managed Redis (§4) | intentionally unset |
+   | `NEXT_PUBLIC_DEMO_MODE` | leave **unset** in production — see safety note below | intentionally unset |
 
-4. Deploy: `vercel --prod`, or push to the branch Vercel is watching.
+   Add the missing ones the same way this session did:
+   ```bash
+   echo -n "<value>" | vercel env add GOOGLE_CLIENT_ID production
+   echo -n "<value>" | vercel env add GOOGLE_CLIENT_SECRET production
+   echo -n "<value>" | vercel env add GEMINI_API_KEY production   # or ANTHROPIC_/OPENAI_
+   vercel --prod   # redeploy so the new vars take effect
+   ```
+
+4. Deploy: `vercel --prod`, or push to the branch Vercel is watching (already connected
+   to `rajeshravikumar661-lang/Chief-of-Staff-Agent`, so pushes to `main` auto-deploy).
 
 **Demo mode safety, unchanged by any of this:** `NEXT_PUBLIC_DEMO_MODE` only has an
 effect when `NODE_ENV=development`. Vercel always builds and runs with
@@ -83,8 +110,9 @@ becomes a priority.
 ## 5. Post-deploy smoke check
 
 ```bash
-curl https://your-app.vercel.app/api/health
-curl https://your-app.vercel.app/api/auth/providers   # google provider registered
+curl https://chief-of-staff-agent-sigma.vercel.app/api/health
+curl https://chief-of-staff-agent-sigma.vercel.app/api/auth/providers   # google provider registered
 ```
-Then sign in with Google end-to-end once, and check Supabase's table editor to confirm
-a `User` / `Account` / `Connection` row landed.
+Both pass today. Once `GOOGLE_CLIENT_ID`/`SECRET` are added, sign in with Google
+end-to-end once, and check Supabase's table editor to confirm a `User` / `Account` /
+`Connection` row landed.

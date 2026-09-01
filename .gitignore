@@ -12,3 +12,6 @@ tsconfig.tsbuildinfo
 
 # WhatsApp auth (Baileys) — never commit
 .wa-auth/
+
+.vercel
+.env*
