@@ -15,6 +15,10 @@ const SESSION_FLAG = "cos-auto-synced";
  * Renders nothing. Failures are swallowed — a stale dashboard is better
  * than a broken one, and the manual "Sync now" on /connections still
  * exists as a fallback and for re-syncing on demand.
+ *
+ * The session flag is only set on success. A failed attempt (cold start,
+ * transient token/API error) is retried on the next dashboard load instead
+ * of silently giving up for the rest of the browser session.
  */
 export function AutoSync() {
   const { mutate } = useSWRConfig();
@@ -22,18 +26,19 @@ export function AutoSync() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (sessionStorage.getItem(SESSION_FLAG)) return;
-    sessionStorage.setItem(SESSION_FLAG, "1");
 
     api
       .syncNow()
       .then(() => {
+        sessionStorage.setItem(SESSION_FLAG, "1");
         mutate("today");
         mutate("connections");
         mutate("briefing-today");
       })
       .catch(() => {
         // Silent: no connected source, expired token, or a cold start.
-        // The manual "Sync now" button on /connections covers retry.
+        // Flag stays unset, so this retries on the next dashboard load.
+        // The manual "Sync now" button on /connections covers immediate retry.
       });
   }, [mutate]);
 
