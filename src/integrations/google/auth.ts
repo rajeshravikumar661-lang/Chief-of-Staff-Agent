@@ -27,7 +27,10 @@ export async function getGoogleClient(
   const conn = await prisma.connection.findUnique({
     where: { userId_provider: { userId, provider } },
   });
-  if (!conn || conn.status !== "connected" || !conn.accessTokenEncrypted) {
+  // A connection previously flipped to "error" by a transient sync failure is
+  // still usable — the token refresh below will prove or disprove it. Only a
+  // hard "disconnected" (user revoked) or a missing token is unrecoverable here.
+  if (!conn || conn.status === "disconnected" || !conn.accessTokenEncrypted) {
     throw new ConnectionMissingError(provider);
   }
 
@@ -67,5 +70,13 @@ export async function markConnectionError(userId: string, provider: string) {
   await prisma.connection.updateMany({
     where: { userId, provider },
     data: { status: "error" },
+  });
+}
+
+/** Clear a stale "error" state after a call to the provider succeeds. */
+export async function markConnectionOk(userId: string, provider: string) {
+  await prisma.connection.updateMany({
+    where: { userId, provider, status: "error" },
+    data: { status: "connected" },
   });
 }

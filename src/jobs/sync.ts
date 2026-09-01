@@ -9,6 +9,7 @@
 import { syncCalendar } from "@/integrations/calendar";
 import { syncDrive } from "@/integrations/drive";
 import { syncGmail } from "@/integrations/gmail";
+import { markConnectionOk } from "@/integrations/google/auth";
 import { syncSlack } from "@/integrations/slack";
 import { syncGithub } from "@/integrations/github";
 import { syncNotion } from "@/integrations/notion";
@@ -53,18 +54,30 @@ function toCount(value: unknown): number {
   return 0;
 }
 
+/** Cap each connector so one hung provider can't stall the whole sync (and the
+ *  request that triggered it). */
+function withTimeout<T>(fn: () => Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    Promise.resolve().then(fn),
+    new Promise<T>((_, rej) =>
+      setTimeout(() => rej(new Error(`${label} sync timed out after ${ms}ms`)), ms),
+    ),
+  ]);
+}
+
 /** Sync every connected source for one user, then refresh derived data. Never throws. */
 export async function syncAll(userId: string): Promise<SyncCounts> {
+  const T = 25_000;
   const [gmail, calendar, drive, slack, github, notion, linear, gworkspace] =
     await Promise.allSettled([
-      Promise.resolve().then(() => syncGmail(userId)),
-      Promise.resolve().then(() => syncCalendar(userId)),
-      Promise.resolve().then(() => syncDrive(userId)),
-      Promise.resolve().then(() => syncSlack(userId)),
-      Promise.resolve().then(() => syncGithub(userId)),
-      Promise.resolve().then(() => syncNotion(userId)),
-      Promise.resolve().then(() => syncLinear(userId)),
-      Promise.resolve().then(() => syncGworkspace(userId)),
+      withTimeout(() => syncGmail(userId), T, "gmail"),
+      withTimeout(() => syncCalendar(userId), T, "calendar"),
+      withTimeout(() => syncDrive(userId), T, "drive"),
+      withTimeout(() => syncSlack(userId), T, "slack"),
+      withTimeout(() => syncGithub(userId), T, "github"),
+      withTimeout(() => syncNotion(userId), T, "notion"),
+      withTimeout(() => syncLinear(userId), T, "linear"),
+      withTimeout(() => syncGworkspace(userId), T, "gworkspace"),
     ]);
 
   const resolve = (
@@ -75,6 +88,14 @@ export async function syncAll(userId: string): Promise<SyncCounts> {
     console.error(`[jobs/sync] ${label} sync failed for user ${userId}: ${errMsg(result.reason)}`);
     return 0;
   };
+
+  // A Google connector that synced without throwing clears any stale "error"
+  // flag left by a previous transient failure.
+  await Promise.allSettled(
+    ([["gmail", gmail], ["calendar", calendar], ["drive", drive]] as const)
+      .filter(([, r]) => r.status === "fulfilled")
+      .map(([p]) => markConnectionOk(userId, p)),
+  );
 
   // Derived data depends on the freshly-synced messages/events.
   const [people, overdue] = await Promise.allSettled([
