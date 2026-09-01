@@ -1,20 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { api, ApiError } from "@/lib/api";
 import { ConnectionCard } from "@/components/ConnectionCard";
 
 const GOOGLE_PROVIDERS = new Set(["gmail", "calendar", "drive"]);
+const M6_PROVIDERS = ["slack", "github", "notion", "linear"];
+
+const PROVIDER_LABELS: Record<string, string> = {
+  slack: "Slack",
+  github: "GitHub",
+  notion: "Notion",
+  linear: "Linear",
+  gworkspace: "Google Workspace",
+};
 
 export default function ConnectionsPage() {
   const { data: connections, isLoading, mutate } = useSWR("connections", api.connections);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [banner, setBanner] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    const connected = searchParams.get("connected");
+    const errored = searchParams.get("error");
+    if (!connected && !errored) return;
+    if (connected) {
+      setBanner({ kind: "success", text: `${PROVIDER_LABELS[connected] ?? connected} connected.` });
+    } else if (errored) {
+      setBanner({
+        kind: "error",
+        text: `Couldn't finish connecting ${PROVIDER_LABELS[errored] ?? errored}. Try again.`,
+      });
+    }
+    mutate();
+    router.replace("/connections");
+  }, [searchParams, router, mutate]);
 
   const google = connections?.filter((c) => GOOGLE_PROVIDERS.has(c.provider)) ?? [];
-  const others = connections?.filter((c) => !GOOGLE_PROVIDERS.has(c.provider)) ?? [];
+  const m6 =
+    connections?.filter((c) => M6_PROVIDERS.includes(c.provider)) ??
+    M6_PROVIDERS.map((provider) => ({
+      provider,
+      status: "disconnected" as const,
+      scopes: [],
+      connectedAt: null,
+      lastSyncAt: null,
+    }));
   const hasConnectedGoogle = google.some((c) => c.status === "connected");
 
   async function syncNow() {
@@ -54,6 +91,11 @@ export default function ConnectionsPage() {
         )}
       </div>
 
+      {banner && (
+        <p className={`mb-4 text-sm ${banner.kind === "success" ? "text-success" : "text-critical"}`}>
+          {banner.text}
+        </p>
+      )}
       {syncResult && <p className="mb-4 text-sm text-success">{syncResult}</p>}
       {syncError && <p className="mb-4 text-sm text-critical">{syncError}</p>}
 
@@ -72,22 +114,17 @@ export default function ConnectionsPage() {
             </section>
           )}
 
-          {others.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-faint">Coming soon</h2>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {others.map((c) => (
-                  <ConnectionCard key={c.provider} connection={c} onChange={() => mutate()} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {connections.length === 0 && (
-            <div className="rounded-lg border border-dashed border-hairline p-8 text-center">
-              <p className="text-sm text-ink-soft">No connections available yet.</p>
+          <section>
+            <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-faint">Integrations</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {m6.map((c) => (
+                <ConnectionCard key={c.provider} connection={c} onChange={() => mutate()} />
+              ))}
             </div>
-          )}
+            <p className="mt-3 text-xs text-ink-faint">
+              Google Workspace is covered by your Google connection above.
+            </p>
+          </section>
         </div>
       )}
     </div>

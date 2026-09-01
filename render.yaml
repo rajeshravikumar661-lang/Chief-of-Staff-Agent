@@ -1,0 +1,129 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Deploy with: Render Dashboard -> New -> Blueprint, point at this repo.
+#
+# Env vars marked `sync: false` are NOT stored in the repo — set them in the
+# Render dashboard for each service after the first deploy.
+
+services:
+  # --------------------------------------------------------------------------
+  # Next.js web app
+  # --------------------------------------------------------------------------
+  - type: web
+    name: cos-agent-web
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: LLM_PROVIDER
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: WHATSAPP_ENABLED
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      # M6 connector OAuth client credentials
+      - key: SLACK_CLIENT_ID
+        sync: false
+      - key: SLACK_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: NOTION_CLIENT_ID
+        sync: false
+      - key: NOTION_CLIENT_SECRET
+        sync: false
+      - key: LINEAR_CLIENT_ID
+        sync: false
+      - key: LINEAR_CLIENT_SECRET
+        sync: false
+
+  # --------------------------------------------------------------------------
+  # Background worker (BullMQ loop — briefings, mailbox sync, WhatsApp)
+  #
+  # NOTE: Render's `free` plan cannot run `worker` services. This is set to
+  # `starter` (the cheapest paid plan). If you are on free tier only, skip this
+  # service and rely on the on-demand "Refresh" button (see DEPLOY.md option C).
+  # --------------------------------------------------------------------------
+  - type: worker
+    name: cos-agent-worker
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npx prisma generate
+    startCommand: npm run worker
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: cos-agent-redis
+          property: connectionString
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: LLM_PROVIDER
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: WHATSAPP_ENABLED
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: SLACK_CLIENT_ID
+        sync: false
+      - key: SLACK_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: NOTION_CLIENT_ID
+        sync: false
+      - key: NOTION_CLIENT_SECRET
+        sync: false
+      - key: LINEAR_CLIENT_ID
+        sync: false
+      - key: LINEAR_CLIENT_SECRET
+        sync: false
+
+  # --------------------------------------------------------------------------
+  # Managed Redis (key-value) — BullMQ broker for the worker.
+  # --------------------------------------------------------------------------
+  - type: keyvalue
+    name: cos-agent-redis
+    plan: free
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: allow all (tighten to Render service IPs in production)

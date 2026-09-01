@@ -12,6 +12,8 @@ const LABELS: Record<string, string> = {
   slack: "Slack",
   github: "GitHub",
   notion: "Notion",
+  linear: "Linear",
+  gworkspace: "Google Workspace",
 };
 
 const DESCRIPTIONS: Record<string, string> = {
@@ -21,11 +23,14 @@ const DESCRIPTIONS: Record<string, string> = {
   slack: "Bring channel context into briefings.",
   github: "Track PRs and issues assigned to you.",
   notion: "Reference pages and docs.",
+  linear: "Track issues and cycles you own.",
+  gworkspace: "Covered by your Google connection.",
 };
 
 export function ConnectionCard({ connection, onChange }: { connection: ConnectionDTO; onChange?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notConfigured, setNotConfigured] = useState(false);
   const { provider, status } = connection;
 
   async function connect() {
@@ -35,7 +40,11 @@ export function ConnectionCard({ connection, onChange }: { connection: Connectio
       const { redirectUrl } = await api.connect(provider);
       window.location.href = redirectUrl;
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Could not start connection");
+      if (e instanceof ApiError && (e.status === 501 || e.code === "NOT_CONFIGURED")) {
+        setNotConfigured(true);
+      } else {
+        setError(e instanceof ApiError ? e.message : "Could not start connection");
+      }
       setBusy(false);
     }
   }
@@ -78,6 +87,9 @@ export function ConnectionCard({ connection, onChange }: { connection: Connectio
         </p>
       )}
       {error && <p className="mt-2 text-xs text-critical">{error}</p>}
+      {notConfigured && (
+        <p className="mt-2 text-xs text-ink-faint">Not configured on this server</p>
+      )}
 
       <div className="mt-3">
         {status === "connected" ? (
@@ -91,7 +103,7 @@ export function ConnectionCard({ connection, onChange }: { connection: Connectio
         ) : (
           <button
             onClick={connect}
-            disabled={busy}
+            disabled={busy || notConfigured}
             className="rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white transition hover:opacity-90 disabled:opacity-50"
           >
             {busy ? "Connecting…" : status === "error" ? "Reconnect" : "Connect"}

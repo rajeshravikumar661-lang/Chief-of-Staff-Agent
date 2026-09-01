@@ -124,3 +124,25 @@ curl https://chief-of-staff-agent-sigma.vercel.app/api/auth/providers   # google
 Both pass today. Once `GOOGLE_CLIENT_ID`/`SECRET` are added, sign in with Google
 end-to-end once, and check Supabase's table editor to confirm a `User` / `Account` /
 `Connection` row landed.
+
+## Render Blueprint
+
+A ready-to-use [`render.yaml`](./render.yaml) is checked in. In the Render dashboard:
+**New → Blueprint → point at this repo**. It provisions three things:
+
+- **`cos-agent-web`** — the Next.js app (`plan: free`), health-checked at `/api/health`.
+- **`cos-agent-worker`** — the BullMQ background loop (`npm run worker`) for morning
+  briefings, mailbox sync, and WhatsApp. Set to `plan: starter` because **Render's
+  free tier cannot run `worker`-type services**. On free tier, skip this service and
+  rely on the on-demand "Refresh" button (§4 option C above).
+- **`cos-agent-redis`** — a managed key-value (Redis) instance; `REDIS_URL` is wired
+  into the worker automatically via `fromService`.
+
+All secrets are declared `sync: false`, so set them per-service in the dashboard
+after the first deploy: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_URL`, `AUTH_SECRET`,
+`TOKEN_ENCRYPTION_KEY`, `GOOGLE_CLIENT_ID/SECRET`, `LLM_PROVIDER`, `GROQ_API_KEY`,
+`WHATSAPP_ENABLED`, `UPSTASH_REDIS_REST_URL/TOKEN`, and the M6 connector client
+ids/secrets (`SLACK_`, `GITHUB_`, `NOTION_`, `LINEAR_`).
+
+**WhatsApp note:** the Baileys socket needs a long-lived process — it runs in the
+persistent `web` (or `worker`) service, not in any serverless/cron context.
