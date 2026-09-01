@@ -56,6 +56,11 @@ export const demoApi = {
     return { ok: true };
   },
 
+  async syncNow(): Promise<{ gmail: number; calendar: number; drive: number; people: number; commitmentsOverdue: number }> {
+    await demoDelay();
+    return { gmail: 6, calendar: 3, drive: 2, people: 3, commitmentsOverdue: 1 };
+  },
+
   async chat(
     message: string,
     conversationId?: string

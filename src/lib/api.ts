@@ -64,6 +64,11 @@ const realApi = {
     request<{ redirectUrl: string }>(`/api/connections/${provider}/connect`, { method: "POST" }),
   disconnect: (provider: string) =>
     request<{ ok: true }>(`/api/connections/${provider}/disconnect`, { method: "POST" }),
+  syncNow: () =>
+    request<{ gmail: number; calendar: number; drive: number; people: number; commitmentsOverdue: number }>(
+      "/api/sync",
+      { method: "POST" },
+    ),
 
   chat: (message: string, conversationId?: string) =>
     request<ChatResponse>("/api/chat", { method: "POST", body: JSON.stringify({ message, conversationId }) }),
