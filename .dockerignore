@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.github
+.env
+.env.*
+*.log
+test
+docs
+coverage
+tsconfig.tsbuildinfo
+README.md
+PERSON_A_AGENT_BACKEND.md
+SHARED-CONTRACT.md

@@ -60,12 +60,21 @@ Quick check:
 curl localhost:3000/api/health
 ```
 
+## Docker
+```bash
+cp .env.example .env      # fill GOOGLE_CLIENT_* + ANTHROPIC_API_KEY
+docker compose up --build # db + redis + web (:3000) + worker; runs migrate deploy on boot
+```
+
 ## Verify
 ```bash
 npm run typecheck   # tsc --noEmit
+npm test            # vitest (needs local db running)
 npm run build       # prisma generate && next build
 npx prisma validate
 ```
+CI (`.github/workflows/ci.yml`) runs typecheck + tests + build against a Postgres service
+on every push and PR to `main`.
 
 ## Layout
 ```
