@@ -42,7 +42,7 @@ export const env = {
       case "gemini":
         return opt("GEMINI_STRONG_MODEL", "gemini-2.5-flash");
       case "groq":
-        return opt("GROQ_STRONG_MODEL", "llama-3.3-70b-versatile");
+        return opt("GROQ_STRONG_MODEL", "openai/gpt-oss-120b");
       default:
         return opt("LLM_STRONG_MODEL", "claude-sonnet-5");
     }
@@ -54,7 +54,7 @@ export const env = {
       case "gemini":
         return opt("GEMINI_CHEAP_MODEL", "gemini-2.5-flash-lite");
       case "groq":
-        return opt("GROQ_CHEAP_MODEL", "llama-3.1-8b-instant");
+        return opt("GROQ_CHEAP_MODEL", "openai/gpt-oss-20b");
       default:
         return opt("LLM_CHEAP_MODEL", "claude-haiku-4-5-20251001");
     }
