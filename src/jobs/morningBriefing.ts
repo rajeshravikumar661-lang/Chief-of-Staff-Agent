@@ -30,6 +30,7 @@ import {
 import { scorePriority } from "@/agent/priorityEngine";
 import type { PrioritySignal } from "@/agent/types";
 import { prisma, scopedDb } from "@/lib/db";
+import { sweepOverdueCommitments } from "@/jobs/commitments";
 import type {
   BriefingItem,
   BriefingResponse,
@@ -333,6 +334,11 @@ async function taskCandidates(db: Db, now: Date): Promise<Candidate[]> {
 export async function generateBriefing(userId: string): Promise<BriefingResponse> {
   const db = scopedDb(userId);
   const now = new Date();
+
+  // Keep commitment status accurate before we rank anything off it.
+  await sweepOverdueCommitments(userId).catch((e) =>
+    console.error(`[jobs/morningBriefing] overdue sweep failed for ${userId}:`, e),
+  );
 
   const candidates = (
     await Promise.all([

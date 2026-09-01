@@ -10,11 +10,15 @@ import { syncCalendar } from "@/integrations/calendar";
 import { syncDrive } from "@/integrations/drive";
 import { syncGmail } from "@/integrations/gmail";
 import { prisma } from "@/lib/db";
+import { syncPeople } from "@/jobs/relationships";
+import { sweepOverdueCommitments } from "@/jobs/commitments";
 
 export interface SyncCounts {
   gmail: number;
   calendar: number;
   drive: number;
+  people: number;
+  commitmentsOverdue: number;
 }
 
 function errMsg(e: unknown): string {
@@ -39,7 +43,7 @@ function toCount(value: unknown): number {
   return 0;
 }
 
-/** Sync every connected source for one user. Never throws. */
+/** Sync every connected source for one user, then refresh derived data. Never throws. */
 export async function syncAll(userId: string): Promise<SyncCounts> {
   const [gmail, calendar, drive] = await Promise.allSettled([
     Promise.resolve().then(() => syncGmail(userId)),
@@ -49,17 +53,25 @@ export async function syncAll(userId: string): Promise<SyncCounts> {
 
   const resolve = (
     result: PromiseSettledResult<unknown>,
-    label: keyof SyncCounts,
+    label: string,
   ): number => {
     if (result.status === "fulfilled") return toCount(result.value);
     console.error(`[jobs/sync] ${label} sync failed for user ${userId}: ${errMsg(result.reason)}`);
     return 0;
   };
 
+  // Derived data depends on the freshly-synced messages/events.
+  const [people, overdue] = await Promise.allSettled([
+    syncPeople(userId),
+    sweepOverdueCommitments(userId),
+  ]);
+
   return {
     gmail: resolve(gmail, "gmail"),
     calendar: resolve(calendar, "calendar"),
     drive: resolve(drive, "drive"),
+    people: resolve(people, "people"),
+    commitmentsOverdue: resolve(overdue, "commitments"),
   };
 }
 
@@ -72,7 +84,7 @@ export async function syncAllUsers(): Promise<void> {
     try {
       const counts = await syncAll(id);
       console.info(
-        `[jobs/sync] user ${id} synced — gmail=${counts.gmail} calendar=${counts.calendar} drive=${counts.drive}`,
+        `[jobs/sync] user ${id} synced — gmail=${counts.gmail} calendar=${counts.calendar} drive=${counts.drive} people=${counts.people} overdue=${counts.commitmentsOverdue}`,
       );
     } catch (err) {
       console.error(`[jobs/sync] user ${id} sync errored: ${errMsg(err)}`);

@@ -6,3 +6,5 @@
 export { generateBriefing } from "./morningBriefing";
 export { syncAll, syncAllUsers } from "./sync";
 export { runCommitmentReminders } from "./reminders";
+export { syncPeople, syncPeopleAllUsers } from "./relationships";
+export { sweepOverdueCommitments, sweepOverdueCommitmentsAllUsers } from "./commitments";

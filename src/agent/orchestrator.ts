@@ -15,6 +15,7 @@ import type { LLM } from "@/agent/llm/provider";
 import type { RetrievedContext } from "@/agent/types";
 import type { ToolResult, VerificationResult } from "@/agent/tools/types";
 import { getLLM } from "@/agent/llm";
+import { meteredLLM } from "@/agent/llm/metered";
 import { retrieveContext, serializeContext } from "@/agent/contextRetriever";
 import { plan } from "@/agent/planner";
 import { toolCatalog } from "@/agent/tools/registry";
@@ -105,7 +106,10 @@ export async function decideStep(
     throw new Error(`step ${stepId} is not awaiting approval (status: ${step.status})`);
   }
 
-  const llm = getLLM();
+  let resumeLlmCost = 0;
+  const llm = meteredLLM(getLLM(), (usd) => {
+    resumeLlmCost += usd;
+  });
 
   if (decision === "approve") {
     await db.agentStep.update({
@@ -153,6 +157,13 @@ export async function decideStep(
   }
 
   await emitStep(db, runId, step.id);
+
+  if (resumeLlmCost > 0) {
+    await db.agentRun.update({
+      where: { id: runId },
+      data: { costUsd: { increment: resumeLlmCost } },
+    });
+  }
 
   await logAction({
     userId,
@@ -202,7 +213,10 @@ export async function cancelRun(userId: string, runId: string): Promise<void> {
 
 async function runLoop(userId: string, runId: string): Promise<void> {
   const db = scopedDb(userId);
-  const llm = getLLM();
+  let llmCost = 0;
+  const llm = meteredLLM(getLLM(), (usd) => {
+    llmCost += usd;
+  });
 
   const maxSteps = env.agentMaxSteps();
   const maxToolCalls = env.agentMaxToolCalls();
@@ -266,7 +280,7 @@ async function runLoop(userId: string, runId: string): Promise<void> {
       runScratch.set(runId, {
         contextSummary: context?.summary ?? "",
         contextText,
-        costUsd: cost,
+        costUsd: cost + llmCost,
       });
 
       run = await db.agentRun.findFirst({
@@ -294,7 +308,7 @@ async function runLoop(userId: string, runId: string): Promise<void> {
       const capExceeded =
         Date.now() - startedAtMs > maxWallclockMs ||
         toolCalls >= maxToolCalls ||
-        cost > maxCostUsd;
+        cost + llmCost > maxCostUsd;
       if (capExceeded) {
         await db.agentStep.updateMany({
           where: { agentRunId: runId, status: SS("pending") },
@@ -349,7 +363,7 @@ async function runLoop(userId: string, runId: string): Promise<void> {
       await emitStep(db, runId, step.id);
     }
 
-    await finalizeRun(userId, runId, { hitCap, llm, cost });
+    await finalizeRun(userId, runId, { hitCap, llm, cost: cost + llmCost });
   } catch (err) {
     console.error("[orchestrator] runLoop error", err);
     await markFailed(userId, runId, err instanceof Error ? err.message : String(err));
