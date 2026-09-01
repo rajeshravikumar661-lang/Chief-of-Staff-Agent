@@ -17,6 +17,11 @@ const TABLE: ReadonlyArray<readonly [string, ModelPrice]> = [
   // gpt-4o-mini must precede gpt-4o ("gpt-4o" is a substring of "gpt-4o-mini").
   ["gpt-4o-mini", { inputPer1M: 0.15, outputPer1M: 0.6 }],
   ["gpt-4o", { inputPer1M: 2.5, outputPer1M: 10 }],
+  // gemini — flash-lite must precede flash.
+  ["gemini-2.5-flash-lite", { inputPer1M: 0.1, outputPer1M: 0.4 }],
+  ["gemini-2.0-flash-lite", { inputPer1M: 0.075, outputPer1M: 0.3 }],
+  ["flash", { inputPer1M: 0.3, outputPer1M: 2.5 }],
+  ["gemini-2.5-pro", { inputPer1M: 1.25, outputPer1M: 10 }],
 ];
 
 /** Fallback when the model id matches nothing in the table. */

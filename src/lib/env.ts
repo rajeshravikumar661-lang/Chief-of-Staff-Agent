@@ -25,17 +25,31 @@ export const env = {
 
   tokenEncryptionKey: () => req("TOKEN_ENCRYPTION_KEY"),
 
-  llmProvider: () => opt("LLM_PROVIDER", "claude") as "claude" | "openai",
+  llmProvider: () =>
+    opt("LLM_PROVIDER", "claude").toLowerCase() as "claude" | "openai" | "gemini",
   anthropicApiKey: () => opt("ANTHROPIC_API_KEY"),
   openaiApiKey: () => opt("OPENAI_API_KEY"),
-  strongModel: () =>
-    opt("LLM_PROVIDER", "claude") === "openai"
-      ? opt("OPENAI_STRONG_MODEL", "gpt-4o")
-      : opt("LLM_STRONG_MODEL", "claude-sonnet-5"),
-  cheapModel: () =>
-    opt("LLM_PROVIDER", "claude") === "openai"
-      ? opt("OPENAI_CHEAP_MODEL", "gpt-4o-mini")
-      : opt("LLM_CHEAP_MODEL", "claude-haiku-4-5-20251001"),
+  geminiApiKey: () => opt("GEMINI_API_KEY") || opt("GOOGLE_GENERATIVE_AI_API_KEY"),
+  strongModel: () => {
+    switch (opt("LLM_PROVIDER", "claude").toLowerCase()) {
+      case "openai":
+        return opt("OPENAI_STRONG_MODEL", "gpt-4o");
+      case "gemini":
+        return opt("GEMINI_STRONG_MODEL", "gemini-2.5-flash");
+      default:
+        return opt("LLM_STRONG_MODEL", "claude-sonnet-5");
+    }
+  },
+  cheapModel: () => {
+    switch (opt("LLM_PROVIDER", "claude").toLowerCase()) {
+      case "openai":
+        return opt("OPENAI_CHEAP_MODEL", "gpt-4o-mini");
+      case "gemini":
+        return opt("GEMINI_CHEAP_MODEL", "gemini-2.5-flash-lite");
+      default:
+        return opt("LLM_CHEAP_MODEL", "claude-haiku-4-5-20251001");
+    }
+  },
 
   redisUrl: () => opt("REDIS_URL", "redis://localhost:6379"),
   briefingHour: () => num("BRIEFING_HOUR", 8),

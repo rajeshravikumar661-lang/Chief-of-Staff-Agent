@@ -11,7 +11,7 @@ with the frontend. Engineering rules: `CLAUDE.md`. Design: `docs/`.
 
 ## Stack
 Next.js 15 (App Router) · TypeScript · PostgreSQL + Prisma · NextAuth v5 (Google) ·
-BullMQ + Redis · LLM behind a provider abstraction (Claude default, OpenAI second).
+BullMQ + Redis · LLM behind a provider abstraction — `LLM_PROVIDER` = `gemini` (default) | `claude` | `openai`.
 
 ## Setup
 
@@ -45,7 +45,7 @@ curl localhost:3000/api/auth/providers    # google provider registered
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `TOKEN_ENCRYPTION_KEY` | `openssl rand -base64 32` (32 bytes — used for AES-256-GCM token encryption) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google Cloud console → OAuth 2.0 client. Authorized redirect URI: `http://localhost:3000/api/auth/callback/google`. Enable Gmail, Calendar, Drive, and Docs APIs. |
-| `ANTHROPIC_API_KEY` | console.anthropic.com (or `OPENAI_API_KEY` + `LLM_PROVIDER=openai`) |
+| LLM key | one of, matching `LLM_PROVIDER`: `GEMINI_API_KEY` (`gemini`, default — aistudio.google.com/apikey), `ANTHROPIC_API_KEY` (`claude`), `OPENAI_API_KEY` (`openai`) |
 | `REDIS_URL` | optional in dev — jobs degrade to no-op scheduling without it |
 
 One Google consent grants login **and** the Gmail/Calendar/Drive connector scopes
@@ -62,7 +62,7 @@ curl localhost:3000/api/health
 
 ## Docker
 ```bash
-cp .env.example .env      # fill GOOGLE_CLIENT_* + ANTHROPIC_API_KEY
+cp .env.example .env      # fill GOOGLE_CLIENT_* + GEMINI_API_KEY
 docker compose up --build # db + redis + web (:3000) + worker; runs migrate deploy on boot
 ```
 

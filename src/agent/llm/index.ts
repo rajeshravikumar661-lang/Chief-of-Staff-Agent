@@ -2,6 +2,7 @@ import { env } from "@/lib/env";
 
 import { ClaudeProvider } from "./claude";
 import { OpenAIProvider } from "./openai";
+import { GeminiProvider } from "./gemini";
 import {
   extractJson,
   type LLM,
@@ -12,15 +13,21 @@ import {
 export * from "./provider";
 export { ClaudeProvider } from "./claude";
 export { OpenAIProvider } from "./openai";
+export { GeminiProvider } from "./gemini";
 export { estimateCost, priceFor, DEFAULT_PRICE } from "./pricing";
 export type { ModelPrice } from "./pricing";
 
 let singleton: LLM | undefined;
 
 function makeProvider(): LLMProvider {
-  return env.llmProvider() === "openai"
-    ? new OpenAIProvider()
-    : new ClaudeProvider();
+  switch (env.llmProvider()) {
+    case "openai":
+      return new OpenAIProvider();
+    case "gemini":
+      return new GeminiProvider();
+    default:
+      return new ClaudeProvider();
+  }
 }
 
 /**
