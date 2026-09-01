@@ -21,14 +21,16 @@ import {
   addDays,
   differenceInHours,
   endOfDay,
-  format,
   isBefore,
   startOfDay,
   subDays,
 } from "date-fns";
 
+import { formatDay, formatTime, normalizeTz } from "@/lib/tz";
+
 import { scorePriority } from "@/agent/priorityEngine";
 import { assessReply } from "@/agent/emailSignal";
+import { githubReviewItems } from "@/integrations/github";
 import type { PrioritySignal } from "@/agent/types";
 import { prisma, scopedDb } from "@/lib/db";
 import { sweepOverdueCommitments } from "@/jobs/commitments";
@@ -142,13 +144,15 @@ function senderName(sender: string | null): string {
   return (m ? m[1] : sender.replace(/<[^>]+>/, "")).trim() || sender;
 }
 
-function fmt(d: Date): string {
-  return format(d, "EEE MMM d, HH:mm");
+function makeFmt(tz: string) {
+  return (d: Date): string => `${formatDay(d, tz)}, ${formatTime(d, tz)}`;
 }
+
+type Fmt = (d: Date) => string;
 
 type Db = ReturnType<typeof scopedDb>;
 
-async function meetingCandidates(db: Db, now: Date): Promise<Candidate[]> {
+async function meetingCandidates(db: Db, now: Date, fmt: Fmt): Promise<Candidate[]> {
   try {
     const events = await db.calendarEvent.findMany({
       where: { startTime: { gte: startOfDay(now), lte: endOfDay(now) } },
@@ -191,7 +195,7 @@ async function meetingCandidates(db: Db, now: Date): Promise<Candidate[]> {
   }
 }
 
-async function emailCandidates(db: Db, now: Date): Promise<Candidate[]> {
+async function emailCandidates(db: Db, now: Date, fmt: Fmt): Promise<Candidate[]> {
   try {
     const messages = await db.message.findMany({
       where: { unread: true, timestamp: { gte: subDays(now, 3) } },
@@ -238,7 +242,7 @@ async function emailCandidates(db: Db, now: Date): Promise<Candidate[]> {
   }
 }
 
-async function commitmentCandidates(db: Db, now: Date): Promise<Candidate[]> {
+async function commitmentCandidates(db: Db, now: Date, fmt: Fmt): Promise<Candidate[]> {
   try {
     const commitments = await db.commitment.findMany({
       where: {
@@ -289,7 +293,7 @@ const TASK_IMPORTANCE: Record<string, number> = {
   LOW: 0.3,
 };
 
-async function taskCandidates(db: Db, now: Date): Promise<Candidate[]> {
+async function taskCandidates(db: Db, now: Date, fmt: Fmt): Promise<Candidate[]> {
   try {
     const tasks = await db.task.findMany({
       where: {
@@ -328,6 +332,36 @@ async function taskCandidates(db: Db, now: Date): Promise<Candidate[]> {
   }
 }
 
+async function githubCandidates(userId: string, now: Date): Promise<Candidate[]> {
+  try {
+    const items = await githubReviewItems(userId);
+    return items.slice(0, 5).map((it): Candidate => ({
+      id: `pr:${it.url}`,
+      kind: "pr",
+      title: `PR waiting for your review: ${it.title}`,
+      detail: `${it.detail} · idle ${Math.round(it.ageHours)}h`,
+      refUrl: it.url,
+      signal: {
+        urgency: it.ageHours >= 48 ? 0.85 : it.ageHours >= 12 ? 0.65 : 0.45,
+        importance: 0.7,
+        deadline: null,
+        relationshipImportance: 0.6,
+      },
+      suggestedActions: [
+        {
+          id: `summarize-pr-${it.url}`,
+          label: `Summarize this PR`,
+          actionType: "SUMMARIZE_PR",
+          goal: `Summarize the GitHub pull request at ${it.url} and what it needs from me`,
+        },
+      ],
+    }));
+  } catch (err) {
+    console.error(`[jobs/morningBriefing] github review query failed: ${errMsg(err)}`);
+    return [];
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -337,6 +371,13 @@ export async function generateBriefing(userId: string): Promise<BriefingResponse
   const db = scopedDb(userId);
   const now = new Date();
 
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { timezone: true },
+  });
+  const tz = normalizeTz(user?.timezone);
+  const fmt = makeFmt(tz);
+
   // Keep commitment status accurate before we rank anything off it.
   await sweepOverdueCommitments(userId).catch((e) =>
     console.error(`[jobs/morningBriefing] overdue sweep failed for ${userId}:`, e),
@@ -344,10 +385,11 @@ export async function generateBriefing(userId: string): Promise<BriefingResponse
 
   const candidates = (
     await Promise.all([
-      meetingCandidates(db, now),
-      emailCandidates(db, now),
-      commitmentCandidates(db, now),
-      taskCandidates(db, now),
+      meetingCandidates(db, now, fmt),
+      emailCandidates(db, now, fmt),
+      commitmentCandidates(db, now, fmt),
+      taskCandidates(db, now, fmt),
+      githubCandidates(userId, now),
     ])
   ).flat();
 

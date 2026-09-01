@@ -5,6 +5,7 @@
  */
 import { endOfDay, startOfDay } from "date-fns";
 import { prisma, scopedDb } from "@/lib/db";
+import { normalizeTz } from "@/lib/tz";
 import { generateBriefing } from "@/jobs/morningBriefing";
 import { formatDigest } from "@/integrations/whatsapp/format";
 import { isWhatsAppEnabled, isLinked, sendToUser } from "@/integrations/whatsapp/client";
@@ -13,7 +14,10 @@ export async function sendWhatsAppDigest(userId: string): Promise<{ sent: boolea
   if (!isWhatsAppEnabled()) return { sent: false, reason: "WHATSAPP_ENABLED != true" };
   if (!isLinked(userId)) return { sent: false, reason: "WhatsApp not linked" };
 
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, timezone: true },
+  });
   const db = scopedDb(userId);
   const now = new Date();
 
@@ -29,6 +33,7 @@ export async function sendWhatsAppDigest(userId: string): Promise<{ sent: boolea
   const text = formatDigest({
     name: user?.name ?? null,
     date: now,
+    timezone: normalizeTz(user?.timezone),
     agenda: events.map((e) => ({
       start: e.startTime,
       title: e.title ?? "(untitled)",

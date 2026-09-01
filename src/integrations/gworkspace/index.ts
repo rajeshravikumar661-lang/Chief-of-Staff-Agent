@@ -1,8 +1,20 @@
 /** Google Workspace connector (M6): Sheets / Docs / Slides read tools.
- *  Stub — replaced by the connector implementation. Uses the existing Google
- *  OAuth from src/integrations/google/auth.ts (scopes added in src/auth.ts). */
-import type { Tool } from "@/agent/tools/types";
-export const gworkspaceTools: Tool[] = [];
-export async function syncGworkspace(_userId: string): Promise<number> {
-  return 0;
-}
+ *  Rides the existing Google OAuth connection (token read via provider "drive";
+ *  scopes declared in src/auth.ts). On-demand lookups only — no background sync. */
+export { gworkspaceTools } from "./tools";
+export { syncGworkspace } from "./sync";
+export {
+  extractGoogleId,
+  getSpreadsheet,
+  readRange,
+  getDoc,
+  getPresentation,
+} from "./client";
+export type {
+  SheetInfo,
+  SpreadsheetMeta,
+  RangeValues,
+  DocContent,
+  SlideText,
+  PresentationContent,
+} from "./client";

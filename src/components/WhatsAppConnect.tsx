@@ -151,6 +151,17 @@ export function WhatsAppConnect() {
               <li>Waiting for scan… this updates automatically.</li>
             </ol>
           </div>
+        ) : state.status === "connecting" ? (
+          <div className="space-y-2">
+            <p className="text-sm text-ink-soft">Reconnecting to WhatsApp… this updates automatically.</p>
+            <button
+              onClick={startPairing}
+              disabled={busy}
+              className="rounded-md border border-line px-3 py-1.5 text-sm text-ink-soft disabled:opacity-50"
+            >
+              {busy ? "Working…" : "Re-link instead"}
+            </button>
+          </div>
         ) : (
           <button
             onClick={startPairing}

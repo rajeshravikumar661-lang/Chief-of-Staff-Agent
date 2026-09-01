@@ -9,6 +9,7 @@ import type {
   AgentRunDTO,
   AgentRunSummaryDTO,
   BriefingResponse,
+  CalendarEventsResponse,
   ChatResponse,
   CommitmentDTO,
   ConnectionDTO,
@@ -150,6 +151,61 @@ export const demoApi = {
   ): Promise<CommitmentDTO> {
     await demoDelay();
     return demoStore.updateCommitment(id, patch);
+  },
+
+  async calendarEvents(_from?: string, _to?: string): Promise<CalendarEventsResponse> {
+    await demoDelay();
+    // Build a few events anchored to the current week (Mon–Sun) so the
+    // demo week view always has something to show.
+    const now = new Date();
+    const monday = new Date(now);
+    const dow = (monday.getUTCDay() + 6) % 7; // 0 = Monday
+    monday.setUTCDate(monday.getUTCDate() - dow);
+    monday.setUTCHours(0, 0, 0, 0);
+    const at = (dayOffset: number, h: number, m = 0) => {
+      const d = new Date(monday);
+      d.setUTCDate(d.getUTCDate() + dayOffset);
+      d.setUTCHours(h, m, 0, 0);
+      return d.toISOString();
+    };
+    return {
+      timezone: "Europe/London",
+      events: [
+        {
+          id: "demo-evt-1",
+          externalId: "gcal-demo-1",
+          title: "Acme investor meeting",
+          start: at(1, 10, 0),
+          end: at(1, 11, 0),
+          allDay: false,
+          attendees: ["jordan@acme.com", "demo@example.com"],
+          location: "Zoom",
+          conferenceUrl: "https://zoom.us/j/demo",
+        },
+        {
+          id: "demo-evt-2",
+          externalId: "gcal-demo-2",
+          title: "Team offsite",
+          start: at(2, 0, 0),
+          end: at(3, 0, 0),
+          allDay: true,
+          attendees: [],
+          location: "Brighton",
+          conferenceUrl: null,
+        },
+        {
+          id: "demo-evt-3",
+          externalId: "gcal-demo-3",
+          title: "1:1 with Alex",
+          start: at(3, 15, 30),
+          end: at(3, 16, 0),
+          allDay: false,
+          attendees: ["alex@example.com"],
+          location: null,
+          conferenceUrl: null,
+        },
+      ],
+    };
   },
 
   async person(id: string): Promise<PersonDTO> {

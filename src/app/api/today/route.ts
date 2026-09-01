@@ -1,9 +1,10 @@
 import { auth } from "@/auth";
 import { isResponse, ok, requireUser } from "@/lib/http";
-import { scopedDb } from "@/lib/db";
+import { prisma, scopedDb } from "@/lib/db";
 import { listRunDTOs } from "@/agent/orchestrator";
 import { scorePriority } from "@/agent/priorityEngine";
 import { greetingFor, hhmm } from "@/app/api/_shared";
+import { dayBoundsInTz, normalizeTz } from "@/lib/tz";
 import type {
   AgendaItem,
   AgentRunSummaryDTO,
@@ -21,13 +22,14 @@ export async function GET() {
   const { userId } = u;
 
   const db = scopedDb(userId);
-  const session = await auth();
+  const [session, userRow] = await Promise.all([
+    auth(),
+    prisma.user.findUnique({ where: { id: userId }, select: { timezone: true } }),
+  ]);
+  const tz = normalizeTz(userRow?.timezone);
 
   const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 59, 59, 999);
+  const { start: startOfDay, end: endOfDay } = dayBoundsInTz(now, tz);
 
   let recentRuns: AgentRunSummaryDTO[] = [];
   const [events, unreadMessages, openCommitments] = await Promise.all([
@@ -53,9 +55,10 @@ export async function GET() {
   }
 
   const agenda: AgendaItem[] = events.map((e) => ({
-    time: hhmm(e.startTime),
+    time: hhmm(e.startTime, tz),
     title: e.title ?? "(untitled)",
     eventId: e.id,
+    startsAt: e.startTime.toISOString(),
   }));
 
   const needsAttention: NeedsAttentionItem[] = [];
@@ -137,7 +140,7 @@ export async function GET() {
   }
 
   const body: TodayResponse = {
-    greeting: greetingFor(session?.user?.name),
+    greeting: greetingFor(session?.user?.name, tz),
     agenda,
     needsAttention: needsAttention.slice(0, 5),
     followUps,

@@ -15,6 +15,7 @@ import type {
   AgentRunDTO,
   AgentRunSummaryDTO,
   BriefingResponse,
+  CalendarEventsResponse,
   ChatResponse,
   CommitmentDTO,
   ConnectionDTO,
@@ -89,6 +90,14 @@ const realApi = {
     request<CommitmentDTO>(`/api/commitments/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
 
   person: (id: string) => request<PersonDTO>(`/api/people/${id}`),
+
+  calendarEvents: (from?: string, to?: string) => {
+    const qs = new URLSearchParams();
+    if (from) qs.set("from", from);
+    if (to) qs.set("to", to);
+    const q = qs.toString();
+    return request<CalendarEventsResponse>(`/api/calendar/events${q ? `?${q}` : ""}`);
+  },
 
   tasks: (status?: string) => request<TaskDTO[]>(`/api/tasks${status ? `?status=${status}` : ""}`),
 

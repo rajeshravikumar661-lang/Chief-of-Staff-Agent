@@ -16,7 +16,12 @@ export async function POST() {
     return err("DISABLED", "WhatsApp is not enabled on this server (WHATSAPP_ENABLED)", 400);
   }
 
-  const { status, qr } = await startPairing(u.userId);
-  const qrDataUrl = qr ? await QRCode.toDataURL(qr, { margin: 1, width: 260 }) : null;
-  return ok({ status, qrDataUrl });
+  try {
+    const { status, qr } = await startPairing(u.userId);
+    const qrDataUrl = qr ? await QRCode.toDataURL(qr, { margin: 1, width: 260 }) : null;
+    return ok({ status, qrDataUrl });
+  } catch (e) {
+    console.error("[whatsapp/pair] failed", e);
+    return err("PAIR_FAILED", e instanceof Error ? e.message : "could not start pairing", 502);
+  }
 }

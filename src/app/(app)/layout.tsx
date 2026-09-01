@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
 import { DEMO_MODE } from "@/lib/demo";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatBar } from "@/components/ChatBar";
 import { DemoModeBanner } from "@/components/DemoModeBanner";
 import { AutoSync } from "@/components/AutoSync";
+import { TimezoneSync } from "@/components/TimezoneSync";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await auth();
@@ -13,9 +15,19 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const userName = session?.user?.name ?? (DEMO_MODE ? "Mohin (Demo)" : undefined);
 
+  let tz: string | null = null;
+  if (session?.user?.id) {
+    const row = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { timezone: true },
+    });
+    tz = row?.timezone ?? null;
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       {!DEMO_MODE && <AutoSync />}
+      {!DEMO_MODE && <TimezoneSync currentTz={tz ?? ""} />}
       {DEMO_MODE && <DemoModeBanner />}
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <Sidebar userName={userName} />

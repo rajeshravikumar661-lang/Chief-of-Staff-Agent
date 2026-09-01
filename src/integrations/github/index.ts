@@ -1,6 +1,27 @@
-/** GitHub connector (M6). Stub — replaced by the connector implementation. */
-import type { Tool } from "@/agent/tools/types";
-export const githubTools: Tool[] = [];
-export async function syncGithub(_userId: string): Promise<number> {
-  return 0;
-}
+/**
+ * GitHub integration (spec §6, §7): connector tools, the Task sync job, the
+ * morning-briefing review feed, and the thin client wrappers.
+ */
+export { githubTools } from "./tools";
+export { syncGithub } from "./sync";
+export { githubReviewItems } from "./reviewItems";
+export type { GithubReviewItem } from "./reviewItems";
+export {
+  getOctokit,
+  ConnectionMissingError,
+  whoAmI,
+  listReviewRequests,
+  listMyOpenPRs,
+  listAssignedIssues,
+  getPR,
+  getIssue,
+  commentOnIssue,
+  listIssueComments,
+  listNotifications,
+} from "./client";
+export type {
+  GithubItem,
+  GithubUser,
+  GithubComment,
+  GithubNotification,
+} from "./client";

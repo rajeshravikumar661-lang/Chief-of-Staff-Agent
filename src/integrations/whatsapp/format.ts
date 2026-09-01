@@ -1,9 +1,10 @@
-import { format } from "date-fns";
 import type { BriefingItem } from "@/lib/types";
+import { formatDay, formatTime } from "@/lib/tz";
 
 export interface DigestInput {
   name: string | null;
   date: Date;
+  timezone: string;
   agenda: { start: Date; title: string; attendees: number }[];
   items: BriefingItem[]; // ranked briefing items (already top-N)
 }
@@ -20,13 +21,14 @@ const ICON: Record<BriefingItem["kind"], string> = {
 /** Compact WhatsApp-formatted daily digest (*bold* via asterisks). */
 export function formatDigest(d: DigestInput): string {
   const hi = d.name ? d.name.split(/\s+/)[0] : "there";
-  const lines: string[] = [`*Good morning, ${hi}* — ${format(d.date, "EEE d MMM")}`, ""];
+  const tz = d.timezone;
+  const lines: string[] = [`*Good morning, ${hi}* — ${formatDay(d.date, tz)}`, ""];
 
   if (d.agenda.length) {
     lines.push(`*Today (${d.agenda.length})*`);
     for (const e of d.agenda.slice(0, 8)) {
       const who = e.attendees > 1 ? ` · ${e.attendees} people` : "";
-      lines.push(`${format(e.start, "HH:mm")}  ${e.title}${who}`);
+      lines.push(`${formatTime(e.start, tz)}  ${e.title}${who}`);
     }
   } else {
     lines.push("*Today* — nothing on the calendar");

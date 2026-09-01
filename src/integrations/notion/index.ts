@@ -1,6 +1,19 @@
-/** Notion connector (M6). Stub — replaced by the connector implementation. */
-import type { Tool } from "@/agent/tools/types";
-export const notionTools: Tool[] = [];
-export async function syncNotion(_userId: string): Promise<number> {
-  return 0;
-}
+/** Notion connector (M6). */
+export { notionTools } from "./tools";
+export { syncNotion } from "./sync";
+export {
+  getNotionClient,
+  search,
+  getPage,
+  queryDatabase,
+  listDatabases,
+  createPage,
+  NotionConnectionError,
+} from "./client";
+export type {
+  NotionPage,
+  NotionPageDetail,
+  NotionDatabaseRef,
+  CreatedNotionPage,
+  CreatePageInput,
+} from "./client";
