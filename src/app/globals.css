@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  /* Chief of Staff palette — warm ink & paper, not "generic AI SaaS blue". */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
+
+  --color-paper: #faf8f4;
+  --color-paper-raised: #ffffff;
+  --color-ink: #1c1a17;
+  --color-ink-soft: #55504a;
+  --color-ink-faint: #8a847b;
+  --color-hairline: #e7e2d9;
+  --color-hairline-strong: #d8d1c4;
+
+  --color-brand: #2f4f3f;
+  --color-brand-soft: #e7efe9;
+  --color-brand-ink: #1c332a;
+
+  --color-accent: #b4562f;
+  --color-accent-soft: #f6e6dc;
+
+  --color-critical: #a4272c;
+  --color-critical-soft: #fbe7e6;
+  --color-high: #b4562f;
+  --color-high-soft: #f6e6dc;
+  --color-medium: #8a6d1f;
+  --color-medium-soft: #f4edd8;
+  --color-low: #55504a;
+  --color-low-soft: #eeece7;
+
+  --color-success: #2f6a4a;
+  --color-success-soft: #e3efe6;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-paper: #161512;
+    --color-paper-raised: #1e1c19;
+    --color-ink: #f2efe9;
+    --color-ink-soft: #c7c1b6;
+    --color-ink-faint: #8a847b;
+    --color-hairline: #322f2a;
+    --color-hairline-strong: #423e37;
+
+    --color-brand: #7fae94;
+    --color-brand-soft: #1e2b23;
+    --color-brand-ink: #d7ead9;
+
+    --color-accent: #d68a5f;
+    --color-accent-soft: #302119;
+
+    --color-critical-soft: #351a19;
+    --color-high-soft: #302119;
+    --color-medium-soft: #2c2717;
+    --color-low-soft: #26241f;
+    --color-success-soft: #1b2921;
+  }
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-ink);
+}
