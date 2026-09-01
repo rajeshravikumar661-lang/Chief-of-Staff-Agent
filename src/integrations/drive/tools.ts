@@ -121,4 +121,4 @@ export const driveTools: Tool[] = [
   searchTool,
   getFileTool,
   createDocumentTool,
-].map((t) => t as unknown as Tool);
+];

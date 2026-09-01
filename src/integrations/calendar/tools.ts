@@ -257,4 +257,4 @@ export const calendarTools: Tool[] = [
   createEventTool,
   cancelEventTool,
   addAttendeeTool,
-].map((t) => t as unknown as Tool);
+];

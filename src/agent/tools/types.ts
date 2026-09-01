@@ -33,6 +33,11 @@ export interface Tool<I = unknown> {
   verify?: (input: I, result: ToolResult, ctx: ToolContext) => Promise<VerificationResult>;
 }
 
-export function defineTool<I>(t: Tool<I>): Tool<I> {
-  return t;
+/**
+ * Authoring helper: keeps full input typing inside the definition, but returns
+ * the erased `Tool` so connectors can collect them into `Tool[]` without casts
+ * (`Tool<I>` is invariant in `I` under strictFunctionTypes).
+ */
+export function defineTool<I>(t: Tool<I>): Tool {
+  return t as Tool;
 }

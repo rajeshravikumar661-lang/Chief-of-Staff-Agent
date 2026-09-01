@@ -254,10 +254,10 @@ const labelTool = defineTool<LabelInput>({
 });
 
 export const gmailTools: Tool[] = [
-  searchTool as Tool,
-  getThreadTool as Tool,
-  createDraftTool as Tool,
-  sendTool as Tool,
-  archiveTool as Tool,
-  labelTool as Tool,
+  searchTool,
+  getThreadTool,
+  createDraftTool,
+  sendTool,
+  archiveTool,
+  labelTool,
 ];
