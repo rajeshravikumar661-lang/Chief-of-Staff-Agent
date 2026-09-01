@@ -13,20 +13,17 @@ import type { Tool } from "@/agent/tools/types";
 import { gmailTools } from "@/integrations/gmail";
 import { calendarTools } from "@/integrations/calendar";
 import { driveTools } from "@/integrations/drive";
-
-// Milestone 6 connectors — not implemented yet. Add their `Tool[]` exports here
-// once `src/integrations/{slack,github,notion}` land:
-//   import { slackTools } from "@/integrations/slack";
-//   import { githubTools } from "@/integrations/github";
-//   import { notionTools } from "@/integrations/notion";
+import { slackTools } from "@/integrations/slack";
+import { githubTools } from "@/integrations/github";
+import { notionTools } from "@/integrations/notion";
 
 const ALL_TOOLS: Tool[] = [
   ...gmailTools,
   ...calendarTools,
   ...driveTools,
-  // ...slackTools,
-  // ...githubTools,
-  // ...notionTools,
+  ...slackTools,
+  ...githubTools,
+  ...notionTools,
 ];
 
 const TOOLS_BY_NAME: Map<string, Tool> = (() => {

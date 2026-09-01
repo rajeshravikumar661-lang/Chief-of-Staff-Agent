@@ -9,6 +9,9 @@
 import { syncCalendar } from "@/integrations/calendar";
 import { syncDrive } from "@/integrations/drive";
 import { syncGmail } from "@/integrations/gmail";
+import { syncSlack } from "@/integrations/slack";
+import { syncGithub } from "@/integrations/github";
+import { syncNotion } from "@/integrations/notion";
 import { prisma } from "@/lib/db";
 import { syncPeople } from "@/jobs/relationships";
 import { sweepOverdueCommitments } from "@/jobs/commitments";
@@ -17,6 +20,9 @@ export interface SyncCounts {
   gmail: number;
   calendar: number;
   drive: number;
+  slack: number;
+  github: number;
+  notion: number;
   people: number;
   commitmentsOverdue: number;
 }
@@ -45,10 +51,13 @@ function toCount(value: unknown): number {
 
 /** Sync every connected source for one user, then refresh derived data. Never throws. */
 export async function syncAll(userId: string): Promise<SyncCounts> {
-  const [gmail, calendar, drive] = await Promise.allSettled([
+  const [gmail, calendar, drive, slack, github, notion] = await Promise.allSettled([
     Promise.resolve().then(() => syncGmail(userId)),
     Promise.resolve().then(() => syncCalendar(userId)),
     Promise.resolve().then(() => syncDrive(userId)),
+    Promise.resolve().then(() => syncSlack(userId)),
+    Promise.resolve().then(() => syncGithub(userId)),
+    Promise.resolve().then(() => syncNotion(userId)),
   ]);
 
   const resolve = (
@@ -70,6 +79,9 @@ export async function syncAll(userId: string): Promise<SyncCounts> {
     gmail: resolve(gmail, "gmail"),
     calendar: resolve(calendar, "calendar"),
     drive: resolve(drive, "drive"),
+    slack: resolve(slack, "slack"),
+    github: resolve(github, "github"),
+    notion: resolve(notion, "notion"),
     people: resolve(people, "people"),
     commitmentsOverdue: resolve(overdue, "commitments"),
   };
