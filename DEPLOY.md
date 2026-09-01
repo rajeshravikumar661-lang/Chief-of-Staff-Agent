@@ -7,13 +7,21 @@
 | Vercel project | **Live**: `rajeshravi/chief-of-staff-agent` → https://chief-of-staff-agent-sigma.vercel.app |
 | Supabase project | **Live**: `chief-of-staff-agent` (org `rajeshravikumar661-lang's Org`, region ap-northeast-1 / Tokyo, free tier) |
 | Database schema | **Migrated** — `prisma migrate deploy` applied against Supabase |
-| `DATABASE_URL`, `AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY`, `NEXTAUTH_URL` | **Set** on Vercel (Production) |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | **Not set** — sign-in will fail until added (§3) |
+| `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY`, `NEXTAUTH_URL` | **Set** on Vercel (Production) |
+| Google Cloud project + OAuth consent screen | **Live**: `Chief of Staff Agent` (`animated-surfer-507314-i8`), External/Testing, 2 test users added |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | **Set** on Vercel — verified end-to-end: "Continue with Google" correctly reaches Google's real account chooser for `chief-of-staff-agent-sigma.vercel.app` with no `invalid_client` error |
 | LLM key (`GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) | **Not set** — agent runs will fail until added |
 | Background worker (§4) | **Not deployed** — briefing/sync jobs no-op until you pick an option |
 
 `curl https://chief-of-staff-agent-sigma.vercel.app/api/health` → `{"status":"ok"}`.
 `/today` correctly 307s to `/signin` unauthenticated — auth is enforced, not bypassed.
+
+**Google OAuth is in Testing mode** (no Google verification review needed, since the app
+only requests read-mostly scopes + compose, not send). Only the 2 emails added as test
+users can actually complete sign-in: `rajesh.ravi@usefaff.com` and
+`rajeshravikumar661@gmail.com`. To add your teammate: Google Cloud Console → this
+project → APIs & Services → Google Auth Platform → Audience → Test users → Add users.
+100-user cap before verification would be required; irrelevant at this stage.
 
 The rest of this doc is the reference for the two pieces above and for adding a worker.
 Nothing here changes local dev: `npm run dev`, `npm run quickstart`, demo mode, and
@@ -73,7 +81,7 @@ ever need a second environment (e.g. staging).
    | `NEXTAUTH_URL` | `https://chief-of-staff-agent-sigma.vercel.app` | ✅ set |
    | `AUTH_SECRET` | generated via `openssl rand -base64 32` | ✅ set |
    | `TOKEN_ENCRYPTION_KEY` | generated via `openssl rand -base64 32` | ✅ set |
-   | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | from Google Cloud Console → Credentials. Add `https://chief-of-staff-agent-sigma.vercel.app/api/auth/callback/google` to that OAuth client's Authorized redirect URIs | ❌ **needed from you** |
+   | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | from Google Cloud Console → Credentials. Add `https://chief-of-staff-agent-sigma.vercel.app/api/auth/callback/google` to that OAuth client's Authorized redirect URIs | ✅ set |
    | LLM key | `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` matching `LLM_PROVIDER` | ❌ **needed from you** |
    | `REDIS_URL` | leave unset unless you've set up a worker host + managed Redis (§4) | intentionally unset |
    | `NEXT_PUBLIC_DEMO_MODE` | leave **unset** in production — see safety note below | intentionally unset |
