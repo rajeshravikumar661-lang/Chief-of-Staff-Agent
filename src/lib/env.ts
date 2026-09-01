@@ -19,6 +19,20 @@ export const env = {
   databaseUrl: () => req("DATABASE_URL"),
   authSecret: () => req("AUTH_SECRET"),
   nextAuthUrl: () => opt("NEXTAUTH_URL", "http://localhost:3000"),
+  /** Public origin of this deployment, for building OAuth callback URLs. */
+  appBaseUrl: () =>
+    (
+      opt("APP_BASE_URL") ||
+      opt("AUTH_URL") ||
+      opt("NEXTAUTH_URL") ||
+      opt("RENDER_EXTERNAL_URL") ||
+      (opt("VERCEL_URL") && `https://${opt("VERCEL_URL")}`) ||
+      "http://localhost:3000"
+    ).replace(/\/$/, ""),
+
+  /** Upstash Redis REST — for cross-instance rate limiting on serverless. */
+  upstashRedisUrl: () => opt("UPSTASH_REDIS_REST_URL"),
+  upstashRedisToken: () => opt("UPSTASH_REDIS_REST_TOKEN"),
 
   googleClientId: () => opt("GOOGLE_CLIENT_ID"),
   googleClientSecret: () => opt("GOOGLE_CLIENT_SECRET"),

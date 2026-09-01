@@ -31,9 +31,39 @@ export type PermissionLevel = "READ" | "DRAFT" | "WRITE" | "DESTRUCTIVE";
 // --- GET /api/today ---------------------------------------------------------
 
 export interface AgendaItem {
-  time: string; // "09:30"
+  time: string; // "09:30" (already formatted in the user's timezone)
   title: string;
   eventId?: string;
+  startsAt?: string; // ISO UTC — for client-side re-formatting if needed
+}
+
+// --- Calendar (multi-day) ------------------------------------------------
+
+export interface CalendarEventDTO {
+  id: string;
+  externalId: string;
+  title: string;
+  start: string; // ISO UTC
+  end: string; // ISO UTC
+  allDay: boolean;
+  attendees: string[];
+  location: string | null;
+  conferenceUrl: string | null;
+}
+export interface CalendarEventsResponse {
+  timezone: string;
+  events: CalendarEventDTO[];
+}
+
+// --- Profile / preferences ---------------------------------------------
+
+export interface ProfileDTO {
+  id: string;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+  timezone: string;
+  digestHour: number | null;
 }
 export interface NeedsAttentionItem {
   id: string;
