@@ -5,6 +5,7 @@ import { DEMO_MODE } from "@/lib/demo";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatBar } from "@/components/ChatBar";
 import { DemoModeBanner } from "@/components/DemoModeBanner";
+import { AutoSync } from "@/components/AutoSync";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const session = await auth();
@@ -14,6 +15,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {!DEMO_MODE && <AutoSync />}
       {DEMO_MODE && <DemoModeBanner />}
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <Sidebar userName={userName} />
