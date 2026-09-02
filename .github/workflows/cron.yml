@@ -1,0 +1,19 @@
+name: kora-cron
+
+# Drives the retired BullMQ worker's job (WhatsApp keep-alive + digest + event
+# reminders) by pinging the deployed HTTP endpoint, and keeps the Render free-tier
+# web service warm so the WhatsApp sockets stay alive. See DEPLOY.md.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ping cron endpoint
+        run: |
+          curl -fsS -X POST "https://kora-app.onrender.com/api/cron" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 90 || echo "cron ping failed (non-fatal)"

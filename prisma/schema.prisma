@@ -358,3 +358,27 @@ model WhatsAppAuthKey {
 
   @@id([userId, keyId])
 }
+
+// ----------------------------------------------------------------------------
+// WhatsApp event reminders + digest dedupe
+// ----------------------------------------------------------------------------
+
+/// One row per (event, reminder kind) already sent — so a reminder is never sent twice.
+model EventReminder {
+  userId  String
+  eventId String // CalendarEvent.id
+  kind    String // "day_before" | "hour_before"
+  sentAt  DateTime @default(now())
+
+  @@id([userId, eventId, kind])
+  @@index([userId])
+}
+
+/// One row per calendar day a WhatsApp digest was sent to a user (dedupe key).
+model WhatsAppDigestLog {
+  userId String
+  sentOn String // "YYYY-MM-DD" in the user's timezone
+  sentAt DateTime @default(now())
+
+  @@id([userId, sentOn])
+}

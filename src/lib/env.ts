@@ -77,6 +77,10 @@ export const env = {
   redisUrl: () => opt("REDIS_URL", "redis://localhost:6379"),
   briefingHour: () => num("BRIEFING_HOUR", 8),
   briefingMinute: () => num("BRIEFING_MINUTE", 30),
+  /** Shared secret the external cron presents to `/api/cron`. Unset = open endpoint. */
+  cronSecret: () => opt("CRON_SECRET"),
+  /** Local hour (0-23) a user's WhatsApp digest goes out when `User.digestHour` is null. */
+  digestDefaultHour: () => num("BRIEFING_HOUR", 9),
 
   agentMaxSteps: () => num("AGENT_MAX_STEPS", 20),
   agentMaxToolCalls: () => num("AGENT_MAX_TOOL_CALLS", 40),

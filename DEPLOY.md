@@ -224,3 +224,45 @@ ids/secrets (`SLACK_`, `GITHUB_`, `NOTION_`, `LINEAR_`).
 
 **WhatsApp note:** the Baileys socket needs a long-lived process — it runs in the
 persistent `web` (or `worker`) service, not in any serverless/cron context.
+
+## Background jobs (cron, not a worker)
+
+The BullMQ + Redis worker (`npm run worker` / the `cos-agent-worker` service) is
+**retired for the Render free-tier deployment**. Render's free tier has no
+background-worker plan, and a free web service spins down after ~15 min idle, so
+the worker never ran reliably.
+
+Instead, an **external cron pings an HTTP endpoint**:
+
+- Endpoint: `POST https://kora-app.onrender.com/api/cron` (also accepts `GET`).
+- Auth: `Authorization: Bearer $CRON_SECRET` (also accepted: `?key=` query param
+  or an `x-cron-key` header). **If `CRON_SECRET` is unset the endpoint is open** —
+  acceptable for now, but set it.
+- Each hit runs `runTick()`: WhatsApp keep-alive (reconnects dead per-user
+  sockets), sends the daily WhatsApp digest to any user whose local hour matches
+  their `digestHour` (deduped per calendar day via `WhatsAppDigestLog`), and runs
+  calendar event reminders. Every unit is idempotent, so a ~10-minute interval is
+  safe.
+- Pinging it also keeps the Render web service warm, which keeps the in-process
+  WhatsApp sockets alive so inbound WhatsApp messages actually get handled.
+
+### Setup
+
+1. **GitHub Actions** (`.github/workflows/cron.yml`) runs every 10 minutes plus
+   manual dispatch. Set the repo secret **`CRON_SECRET`** in GitHub → Settings →
+   Secrets and variables → Actions.
+2. On the **`kora-app`** Render service, set these env vars:
+   - **`CRON_SECRET`** — the *same* value as the GitHub secret.
+   - **`BRIEFING_HOUR=9`** — default local hour for the WhatsApp digest. A
+     per-user `digestHour` (set from the dashboard) overrides it.
+3. GitHub Actions cron is best-effort (runs are often delayed 10–20 min under
+   load, and skipped entirely on repos with no recent activity). For a firmer
+   schedule use **[cron-job.org](https://cron-job.org)** (free, 5-minute
+   interval): same URL, same `Authorization: Bearer` header.
+
+### In-process backup
+
+`src/instrumentation.ts` starts `startTickInterval()` on server boot, which calls
+`runTick()` every 10 minutes while the process is alive. This is only a
+warm-process backup — it dies whenever Render spins the service down, so the
+external cron remains the real driver.

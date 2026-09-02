@@ -25,7 +25,7 @@ import makeWASocket, {
 import pino from "pino";
 import { prisma } from "@/lib/db";
 import { useDbAuthState, hasDbAuthState, clearDbAuthState } from "@/integrations/whatsapp/dbAuthState";
-import { handleChat } from "@/agent/chat";
+import { runWhatsAppTurn } from "@/agent/whatsappAgent";
 
 const logger = pino({ level: process.env.WHATSAPP_LOG_LEVEL || "warn" });
 
@@ -72,6 +72,13 @@ const sentIds = new Set<string>();
 const sentTexts = new Set<string>();
 /** userIds with an inbound turn currently in flight (one at a time per user). */
 const handling = new Set<string>();
+/**
+ * Ids of inbound messages we've already picked up. This — not `socketStartedAt`
+ * — is the replay guard: a short spin-down + reconnect can redeliver a very
+ * recent message, and we still want to answer it once (but only once). Bounded
+ * so a long-lived process can't leak.
+ */
+const seenInboundIds = new Set<string>();
 /** Sockets that already carry a messages.upsert listener (attach once each). */
 const inboundBound = new WeakSet<WASocket>();
 
@@ -169,8 +176,9 @@ function scheduleReconnect(userId: string, e: UserWA): void {
 }
 
 /**
- * Wire the user's WhatsApp self-chat as a two-way "Ask Kora" surface: an inbound
- * text becomes a `handleChat()` turn and the answer is sent straight back.
+ * Wire the user's WhatsApp self-chat as a two-way command surface: an inbound
+ * text becomes a `runWhatsAppTurn()` turn — which answers questions AND carries
+ * out actions (e.g. creating a calendar event), replying with a confirmation.
  * Attached once per socket; every failure is swallowed so a bad message can
  * never take the connection down.
  */
@@ -205,15 +213,18 @@ async function handleInboundMessage(
   // Only the user's OWN self-chat is a Kora surface — ignore every other thread.
   if (jidNormalizedUser(remoteJid) !== e.selfJid) return;
 
-  // Ignore anything from before this socket started so a reconnect doesn't
-  // replay + re-answer an old backlog. (messageTimestamp is seconds; Long has
-  // a valueOf so Number() handles both shapes.)
+  // Recency window only: ignore messages older than 10 minutes so a brief
+  // spin-down + reconnect still gets answered. Per-id dedupe (below) is the
+  // real replay guard. (messageTimestamp is seconds; Long has a valueOf so
+  // Number() handles both shapes.)
   const ts = Number(m.messageTimestamp ?? 0);
-  if (e.socketStartedAt && ts && ts < e.socketStartedAt) return;
+  if (ts && ts < Math.floor(Date.now() / 1000) - 600) return;
 
   // Loop prevention: Kora's own replies arrive here too (fromMe, same chat).
   const id = m.key?.id ?? undefined;
   if (id && sentIds.has(id)) return;
+  // Replay guard: never handle the same inbound id twice (reconnect redelivery).
+  if (id && seenInboundIds.has(id)) return;
 
   const text = (
     m.message?.conversation ??
@@ -223,23 +234,30 @@ async function handleInboundMessage(
   if (!text) return;
   if (sentTexts.has(text)) return; // defensive: exact echo of something we sent
 
-  // handleChat is slow relative to WhatsApp delivery — one turn per user at a
-  // time; drop (with a log) rather than queue so we can't pile up.
+  // An agent turn can take ~30s — one turn per user at a time. Tell the user
+  // we're busy (audible) rather than dropping silently, so they know to resend.
   if (handling.has(userId)) {
-    console.warn(`[whatsapp] busy — dropping inbound for ${userId}: ${text.slice(0, 60)}`);
+    await sendToUser(
+      userId,
+      "⏳ Still working on your previous message — one sec.",
+    ).catch(() => {});
     return;
   }
   handling.add(userId);
+  if (id) {
+    if (seenInboundIds.size > 500) seenInboundIds.clear();
+    seenInboundIds.add(id);
+  }
   try {
     try {
       await sock.sendPresenceUpdate("composing", remoteJid);
     } catch {
       /* presence is cosmetic */
     }
-    const res = await handleChat(userId, text);
-    await sendToUser(userId, res.reply);
+    const reply = await runWhatsAppTurn(userId, text);
+    await sendToUser(userId, reply);
   } catch (err) {
-    console.error(`[whatsapp] handleChat failed for ${userId}:`, err);
+    console.error(`[whatsapp] runWhatsAppTurn failed for ${userId}:`, err);
     await sendToUser(
       userId,
       "Sorry — I hit an error handling that. Try again in a moment.",
