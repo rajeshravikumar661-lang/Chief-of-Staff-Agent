@@ -41,7 +41,10 @@ interface UserWA {
   status: WAStatus;
   qr?: string;
   selfJid?: string;
-  starting?: Promise<void>;
+  /** set while a connect attempt is in flight (see `connectChain`) */
+  starting?: Promise<unknown>;
+  /** the single pending reconnect timer, if any — never schedule a second */
+  reconnectTimer?: ReturnType<typeof setTimeout>;
   /** consecutive unexpected-disconnect count, for reconnect backoff */
   retries?: number;
   /** set by unlink() so in-flight sockets / timers stop touching this user */
@@ -162,17 +165,38 @@ async function getEntry(userId: string): Promise<UserWA> {
   return e;
 }
 
-function scheduleReconnect(userId: string, e: UserWA): void {
-  if (e.unlinked) return;
+/** Baileys `DisconnectReason.connectionReplaced` — another client took the session. */
+const CONNECTION_REPLACED = 440;
+
+function scheduleReconnect(userId: string, e: UserWA, code?: number): void {
+  // One pending reconnect at a time — a live socket, an in-flight connect, or an
+  // already-scheduled timer all mean "do nothing". This is the guard that keeps a
+  // close event from fanning out into a storm of parallel sockets.
+  if (e.unlinked || e.sock || e.starting || e.reconnectTimer || e.status === "connected") return;
+
   const attempt = (e.retries = (e.retries ?? 0) + 1);
-  const delay = Math.min(30_000, 1_000 * 2 ** Math.min(attempt, 5));
-  setTimeout(() => {
+  if (attempt > 8) {
+    // Give up for now; the 10-minute tick calls connectUser() fresh and resets this.
+    console.warn(`[whatsapp] ${userId}: ${attempt} reconnects — backing off until next tick`);
+    e.retries = 0;
+    return;
+  }
+  // A "replaced" (440) means two clients are fighting over the session; back off
+  // hard and jitter so they don't ping-pong. Ordinary drops retry quickly.
+  const base = code === CONNECTION_REPLACED ? 45_000 : 2_000;
+  const delay =
+    Math.min(120_000, base * 2 ** Math.min(attempt - 1, 5)) + Math.floor(Math.random() * 5_000);
+
+  const timer = setTimeout(() => {
+    e.reconnectTimer = undefined;
     if (e.unlinked || reg.get(userId) !== e) return;
     if (e.sock || e.starting || e.status === "connected") return;
     void connectUser(userId).catch((err) =>
       console.error(`[whatsapp] reconnect failed for ${userId}:`, err),
     );
   }, delay);
+  timer.unref?.();
+  e.reconnectTimer = timer;
 }
 
 /**
@@ -267,130 +291,198 @@ async function handleInboundMessage(
   }
 }
 
+/**
+ * Per-user single-flight for socket creation. EVERY path that opens a socket
+ * (pairing, tick keep-alive, getState self-heal, scheduleReconnect) funnels
+ * through `connectUser`, and this chain guarantees the bodies never overlap for
+ * the same user — the root cause of the earlier "conflict / replaced" storm was
+ * two `makeWASocket` calls racing for one linked device.
+ */
+const connectChain = new Map<string, Promise<UserWA>>();
+
 /** Spin up (or reuse) a socket for this user. Resolves once it's open OR a QR is ready. */
 export async function connectUser(userId: string): Promise<UserWA> {
+  assertSafeUserId(userId);
+  const prev = connectChain.get(userId) ?? Promise.resolve();
+  const next = prev
+    .catch(() => undefined)
+    .then(() => connectUserInner(userId));
+  connectChain.set(userId, next);
+  try {
+    return await next;
+  } finally {
+    if (connectChain.get(userId) === next) connectChain.delete(userId);
+  }
+}
+
+/** Fully drop a socket: kill its listeners and its WebSocket so WhatsApp stops
+ *  counting it as a live connection for the device. */
+function teardownSocket(e: UserWA): void {
+  const s = e.sock;
+  e.sock = undefined;
+  if (!s) return;
+  try {
+    s.ev.removeAllListeners("connection.update");
+    s.ev.removeAllListeners("creds.update");
+    s.ev.removeAllListeners("messages.upsert");
+  } catch {
+    /* ignore */
+  }
+  try {
+    s.end(undefined);
+  } catch {
+    /* ignore */
+  }
+}
+
+async function connectUserInner(userId: string): Promise<UserWA> {
   const e = await getEntry(userId);
   e.unlinked = false;
 
-  // A live socket already exists (connected, or mid-pairing with a QR shown) —
-  // never open a second one for the same user.
+  // Healthy socket already — reuse it.
   if (e.sock && (e.status === "connected" || e.status === "qr")) return e;
-  // A start is already in flight (possibly mid-QR) — join it, don't race a 2nd socket.
-  if (e.starting) {
-    await e.starting;
-    return e;
+
+  // Any prior socket must be gone before we open a new one (two live sockets for
+  // one device => WhatsApp evicts one with a 440 "replaced", which used to kick
+  // off an endless reconnect war).
+  teardownSocket(e);
+  if (e.reconnectTimer) {
+    clearTimeout(e.reconnectTimer);
+    e.reconnectTimer = undefined;
   }
 
-  e.starting = (async () => {
-    let sock: WASocket | undefined;
+  const done = { flag: false };
+  const started = (async () => {
+    const { state, saveCreds } = await useDbAuthState(userId);
+
+    let version: [number, number, number] | undefined;
     try {
-      const { state, saveCreds } = await useDbAuthState(userId);
-
-      let version: [number, number, number] | undefined;
-      try {
-        ({ version } = await fetchLatestBaileysVersion());
-      } catch {
-        version = undefined; // offline / rate-limited — fall back to Baileys' bundled version
-      }
-
-      sock = makeWASocket({
-        ...(version ? { version } : {}),
-        auth: state,
-        logger,
-        printQRInTerminal: false,
-      });
-      e.sock = sock;
-      e.socketStartedAt = Math.floor(Date.now() / 1000);
-      console.info(`[whatsapp] socket created for ${userId} (version=${version ? version.join(".") : "bundled"})`);
-      if (e.status !== "qr") e.status = "connecting";
-      sock.ev.on("creds.update", saveCreds);
-      // Inbound side of the channel — makes the self-chat a two-way "Ask Kora".
-      attachInboundHandler(userId, e, sock);
-
-      await new Promise<void>((resolve) => {
-        let settled = false;
-        const done = () => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve();
-        };
-        // Never hang the caller: if nothing happens, return with whatever state we have.
-        const timer = setTimeout(done, CONNECT_WAIT_MS);
-
-        sock!.ev.on("connection.update", (u) => {
-          if (e.unlinked) return;
-          const { connection, lastDisconnect, qr } = u;
-          if (qr) {
-            console.info(`[whatsapp] qr received for ${userId}`);
-            e.qr = qr;
-            e.status = "qr";
-            done(); // caller can now show the QR
-          }
-          if (connection === "open") {
-            console.info(`[whatsapp] connection open for ${userId}`);
-            e.qr = undefined;
-            e.status = "connected";
-            e.retries = 0;
-            e.lastError = undefined;
-            e.selfJid = sock!.user?.id ? jidNormalizedUser(sock!.user.id) : undefined;
-            const digits = jidToDigits(e.selfJid);
-            if (digits && !e.unlinked) {
-              prisma.user
-                .update({ where: { id: userId }, data: { whatsappJid: digits } })
-                .catch((err) => console.error("[whatsapp] persist number failed", err));
-            }
-            done();
-          }
-          if (connection === "close") {
-            const code = (
-              lastDisconnect?.error as { output?: { statusCode?: number } } | undefined
-            )?.output?.statusCode;
-            console.error(
-              `[whatsapp] connection close for ${userId} (code=${code ?? "?"}):`,
-              lastDisconnect?.error,
-            );
-            e.sock = undefined;
-            e.starting = undefined;
-            if (code === DisconnectReason.loggedOut) {
-              e.status = "unpaired";
-              e.qr = undefined;
-              e.selfJid = undefined;
-              void clearDbAuthState(userId).catch(() => {});
-              done();
-            } else {
-              // 515 restart-required (normal right after linking), network blips,
-              // Render spin-down resume, etc. — reconnect with backoff so a linked
-              // user is never permanently stuck "connecting".
-              void hasDbAuthState(userId).then((linked) => {
-                e.status = linked ? "connecting" : "unpaired";
-                if (e.status === "connecting") scheduleReconnect(userId, e);
-                done();
-              });
-            }
-          }
-        });
-      });
-    } catch (error) {
-      try {
-        sock?.end?.(undefined);
-      } catch {
-        /* ignore */
-      }
-      e.sock = undefined;
-      e.lastError = error instanceof Error ? error.message : String(error);
-      console.error(`[whatsapp] setup failed for ${userId}:`, error);
-      e.status = (await hasDbAuthState(userId)) ? "connecting" : "unpaired";
-      throw error;
+      ({ version } = await fetchLatestBaileysVersion());
+    } catch {
+      version = undefined; // offline / rate-limited — fall back to the bundled version
     }
+
+    const sock = makeWASocket({
+      ...(version ? { version } : {}),
+      auth: state,
+      logger,
+      printQRInTerminal: false,
+      markOnlineOnConnect: false,
+    });
+    e.sock = sock;
+    e.socketStartedAt = Math.floor(Date.now() / 1000);
+    if (e.status !== "qr") e.status = "connecting";
+    console.info(
+      `[whatsapp] socket created for ${userId} (version=${version ? version.join(".") : "bundled"})`,
+    );
+
+    sock.ev.on("creds.update", saveCreds);
+    attachInboundHandler(userId, e, sock);
+    attachConnectionHandler(userId, e, sock);
   })();
 
   try {
-    await e.starting;
-  } finally {
-    e.starting = undefined;
+    await started;
+  } catch (error) {
+    teardownSocket(e);
+    e.lastError = error instanceof Error ? error.message : String(error);
+    console.error(`[whatsapp] setup failed for ${userId}:`, error);
+    e.status = (await hasDbAuthState(userId)) ? "connecting" : "unpaired";
+    throw error;
   }
+
+  // Wait for the first decisive connection event (or the timeout) before
+  // returning, so `startPairing` can hand back a QR immediately.
+  await new Promise<void>((resolve) => {
+    const finish = (): void => {
+      if (done.flag) return;
+      done.flag = true;
+      clearTimeout(timer);
+      e.sock?.ev.off("connection.update", onUpdate);
+      resolve();
+    };
+    const timer = setTimeout(finish, CONNECT_WAIT_MS);
+    const onUpdate = (u: {
+      connection?: string;
+      qr?: string;
+    }): void => {
+      if (u.qr || u.connection === "open" || u.connection === "close") finish();
+    };
+    e.sock?.ev.on("connection.update", onUpdate);
+  });
+
   return e;
+}
+
+/**
+ * Ongoing per-socket lifecycle: promote to "connected" on open, and on an
+ * unexpected close either clear the session (logged out) or schedule a single
+ * guarded reconnect. Stale invocations (a newer socket already owns `e`) no-op.
+ */
+function attachConnectionHandler(userId: string, e: UserWA, sock: WASocket): void {
+  sock.ev.on("connection.update", (u) => {
+    if (e.sock !== sock || e.unlinked) return; // superseded / unlinked
+    const { connection, lastDisconnect, qr } = u;
+
+    if (qr) {
+      console.info(`[whatsapp] qr received for ${userId}`);
+      e.qr = qr;
+      e.status = "qr";
+    }
+
+    if (connection === "open") {
+      console.info(`[whatsapp] connection open for ${userId}`);
+      e.qr = undefined;
+      e.status = "connected";
+      e.lastError = undefined;
+      e.selfJid = sock.user?.id ? jidNormalizedUser(sock.user.id) : undefined;
+      const digits = jidToDigits(e.selfJid);
+      if (digits && !e.unlinked) {
+        prisma.user
+          .update({ where: { id: userId }, data: { whatsappJid: digits } })
+          .catch((err) => console.error("[whatsapp] persist number failed", err));
+      }
+      // Only clear the backoff once the link has held for a bit — otherwise an
+      // open→close flap resets it every cycle and never actually backs off.
+      const stable = setTimeout(() => {
+        if (e.sock === sock && e.status === "connected") e.retries = 0;
+      }, 20_000);
+      stable.unref?.();
+    }
+
+    if (connection === "close") {
+      const code = (
+        lastDisconnect?.error as { output?: { statusCode?: number } } | undefined
+      )?.output?.statusCode;
+      console.error(
+        `[whatsapp] connection close for ${userId} (code=${code ?? "?"}): ${
+          lastDisconnect?.error instanceof Error
+            ? lastDisconnect.error.message
+            : String(lastDisconnect?.error ?? "")
+        }`,
+      );
+      if (e.sock === sock) e.sock = undefined;
+      try {
+        sock.ev.removeAllListeners("connection.update");
+        sock.ev.removeAllListeners("creds.update");
+        sock.ev.removeAllListeners("messages.upsert");
+      } catch {
+        /* ignore */
+      }
+
+      if (code === DisconnectReason.loggedOut) {
+        e.status = "unpaired";
+        e.qr = undefined;
+        e.selfJid = undefined;
+        void clearDbAuthState(userId).catch(() => {});
+        return;
+      }
+      void hasDbAuthState(userId).then((linked) => {
+        e.status = linked ? "connecting" : "unpaired";
+        if (linked && !e.unlinked) scheduleReconnect(userId, e, code);
+      });
+    }
+  });
 }
 
 export async function getState(userId: string): Promise<{ status: WAStatus; qr?: string; number?: string }> {
@@ -399,8 +491,15 @@ export async function getState(userId: string): Promise<{ status: WAStatus; qr?:
   // Self-heal: a linked user whose in-memory socket died (process restart,
   // Render free-tier spin-down, etc.) shows "connecting" until someone
   // re-triggers a connection. Kick one off in the background — throttled so a
-  // fast-polling dashboard can't spawn a reconnect storm.
-  if (e.status === "connecting" && !e.sock && !e.starting && !e.unlinked) {
+  // fast-polling dashboard can't spawn a reconnect storm. `connectUser` is
+  // single-flighted, so an overlapping call here is a harmless no-op.
+  if (
+    e.status === "connecting" &&
+    !e.sock &&
+    !connectChain.has(userId) &&
+    !e.reconnectTimer &&
+    !e.unlinked
+  ) {
     const now = Date.now();
     if (!e.nextRetryAt || e.nextRetryAt <= now) {
       e.nextRetryAt = now + SELF_HEAL_COOLDOWN_MS;
@@ -417,6 +516,23 @@ export async function getState(userId: string): Promise<{ status: WAStatus; qr?:
   };
 }
 
+/**
+ * Gentle periodic nudge (called by the cron tick). Unlike `connectUser` it never
+ * pre-empts an active reconnect backoff — it only re-establishes a socket for a
+ * linked user who is genuinely idle (no socket, no pending retry, not mid-connect).
+ */
+export async function keepAlive(userId: string): Promise<void> {
+  assertSafeUserId(userId);
+  const e = reg.get(userId);
+  if (e) {
+    if (e.sock && e.status === "connected") return; // healthy
+    if (e.reconnectTimer || connectChain.has(userId) || e.unlinked) return; // already in hand
+  }
+  await connectUser(userId).catch((err) =>
+    console.error(`[whatsapp] keepAlive failed for ${userId}:`, err),
+  );
+}
+
 /** Begin (or continue) a pairing attempt; returns as soon as a QR or connection is ready. */
 export async function startPairing(userId: string): Promise<{ status: WAStatus; qr?: string }> {
   const e = await connectUser(userId);
@@ -429,6 +545,11 @@ export async function unlink(userId: string): Promise<void> {
   if (e) {
     // Stop any in-flight connect / scheduled reconnect from resurrecting this user.
     e.unlinked = true;
+    if (e.reconnectTimer) {
+      clearTimeout(e.reconnectTimer);
+      e.reconnectTimer = undefined;
+    }
+    connectChain.delete(userId);
     const sock = e.sock;
     e.sock = undefined;
     e.starting = undefined;

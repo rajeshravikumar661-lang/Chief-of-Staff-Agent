@@ -3,7 +3,7 @@
  * driven instead by an external cron hitting /api/cron. Safe to call as often as
  * every few minutes; every unit is idempotent.
  */
-import { connectUser, isLinked, isWhatsAppEnabled } from "@/integrations/whatsapp/client";
+import { keepAlive, isLinked, isWhatsAppEnabled } from "@/integrations/whatsapp/client";
 import { prisma } from "@/lib/db";
 import { env } from "@/lib/env";
 import { hourInTz, normalizeTz } from "@/lib/tz";
@@ -49,7 +49,7 @@ export async function runTick(): Promise<TickResult> {
       for (const { id } of users) {
         try {
           if (await isLinked(id)) {
-            await connectUser(id);
+            await keepAlive(id);
             result.whatsappReconnected++;
           }
         } catch (err) {
