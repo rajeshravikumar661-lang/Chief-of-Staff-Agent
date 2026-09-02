@@ -1,22 +1,41 @@
-# Deploying — Vercel + Supabase
+# Deploying — Render + Supabase
 
-## Current live status
+## Current live status (2026-09-02)
+
+**Canonical deployment: `kora-app` on Render → https://kora-app.onrender.com**
 
 | Piece | Status |
 |---|---|
-| Vercel project | **Live**: `rajeshravi/chief-of-staff-agent` → https://chief-of-staff-agent-sigma.vercel.app |
-| Supabase project | **Live**: `chief-of-staff-agent` (org `rajeshravikumar661-lang's Org`, region ap-northeast-1 / Tokyo, free tier) |
-| Database schema | **Migrated** — all 3 migrations applied, including `user_timezone` |
-| `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY`, `NEXTAUTH_URL` | **Set** on Vercel (Production) |
-| Google Cloud project + OAuth consent screen | **Live**: `Chief of Staff Agent` (`animated-surfer-507314-i8`), External/**Production** (published), 2 known users added as Testing-era allowlist (now irrelevant — anyone can attempt sign-in, capped at 100 lifetime, with Google's "unverified app" click-through) |
-| Google APIs enabled | Gmail, Calendar, Drive, Docs — all four enabled on the project |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | **Set** on Vercel — verified end-to-end, no `invalid_client` |
-| LLM key (`GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) | **Set** on Vercel only — not yet copied to Render (see below) |
-| Background worker (§4/§Render Blueprint) | **Not deployed** — briefing/sync jobs no-op until you pick an option |
-| **Render web service (`cos-agent-web`)** | **Live**: https://cos-agent-web-wul5.onrender.com — deployed 2026-09-02 specifically so WhatsApp linking works (see below); free plan, standalone `New → Web Service`, **not** the `render.yaml` Blueprint |
+| Render web service | **Live**: `kora-app` (`srv-dabvms7avr4c73av9m80`) → https://kora-app.onrender.com — free plan, persistent Node process (needed for WhatsApp), standalone `New → Web Service`, auto-deploys from `main` |
+| Build command | `npm ci && npx prisma generate && npx next build` — migrations are **not** run here; the shared DB is already migrated by another service. `npm run build` (which does run `prisma migrate deploy`) is still the default for any service that owns migrations. |
+| LLM provider | **Groq** — `LLM_PROVIDER=groq`, `GROQ_STRONG_MODEL=openai/gpt-oss-120b`, `GROQ_CHEAP_MODEL=openai/gpt-oss-20b`, `GROQ_API_KEY` set |
+| Supabase project | **Live**, region ap-northeast-1 / Tokyo, free tier. Schema migrated. `DATABASE_URL` = transaction pooler (6543), `DIRECT_URL` = session pooler (5432, IPv4). |
+| Env vars on `kora-app` | `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY`, `NEXTAUTH_URL=https://kora-app.onrender.com`, `APP_BASE_URL=https://kora-app.onrender.com`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GROQ_*`, `WHATSAPP_ENABLED=true` |
+| Google Cloud / OAuth | project `cos-agent-507313`. Authorized redirect URI `https://kora-app.onrender.com/api/auth/callback/google` added and verified (OAuth flow reaches the account chooser, no `redirect_uri_mismatch`). Consent screen published (External/Production); unverified-app interstitial still shows until Google verification completes. |
+| WhatsApp | two-way ("Ask Kora") + daily digest. Auth state is DB-backed (`WhatsAppAuthCreds` / `WhatsAppAuthKey`), so a linked session survives redeploys and is shared across any service on the same DB. |
 
-`curl https://chief-of-staff-agent-sigma.vercel.app/api/health` → `{"status":"ok"}`.
+`curl https://kora-app.onrender.com/api/health` → `{"status":"ok"}`.
 `/today` correctly 307s to `/signin` unauthenticated — auth is enforced, not bypassed.
+
+### Older deployments — deprecated, safe to delete
+
+These predate `kora-app` and all point at the **same Supabase DB**, so they are running
+duplicates, not a staging/prod split:
+
+| Deployment | URL | Note |
+|---|---|---|
+| Render `cos-agent-web` | https://cos-agent-web.onrender.com | still auto-deploys from `main`; superseded by `kora-app` |
+| Render `Kora` (stray) | https://kora-s86u.onrender.com | half-created, never built green; auto-deploy already disabled — delete it |
+| Vercel `cos-agent-basu` | https://cos-agent-basu.vercel.app | old host; WhatsApp can't work on Vercel serverless |
+| Vercel `chief-of-staff-agent-sigma` | https://chief-of-staff-agent-sigma.vercel.app | oldest host |
+
+Render `koraai` (`chief-of-staff-worker-e4be.onrender.com`) is the **background worker**
+(BullMQ: morning briefing / sync / reminders). Keep it if you want background automation;
+it also needs the same env vars as `kora-app` plus `REDIS_URL`.
+
+The rest of this doc still refers to the earlier Vercel-first setup — treat it as
+historical reference for Supabase pooler choices and the OAuth publishing steps, which
+are unchanged. Nothing here affects local dev.
 
 ### Render web service — why it exists, and its gaps
 
