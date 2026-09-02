@@ -54,7 +54,7 @@ export const env = {
       case "openai":
         return opt("OPENAI_STRONG_MODEL", "gpt-4o");
       case "gemini":
-        return opt("GEMINI_STRONG_MODEL", "gemini-2.5-flash");
+        return opt("GEMINI_STRONG_MODEL", "gemini-3.6-flash");
       case "groq":
         return opt("GROQ_STRONG_MODEL", "openai/gpt-oss-120b");
       default:
@@ -66,7 +66,7 @@ export const env = {
       case "openai":
         return opt("OPENAI_CHEAP_MODEL", "gpt-4o-mini");
       case "gemini":
-        return opt("GEMINI_CHEAP_MODEL", "gemini-2.5-flash-lite");
+        return opt("GEMINI_CHEAP_MODEL", "gemini-3.5-flash-lite");
       case "groq":
         return opt("GROQ_CHEAP_MODEL", "openai/gpt-oss-20b");
       default:
