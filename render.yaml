@@ -3,13 +3,16 @@
 #
 # Env vars marked `sync: false` are NOT stored in the repo — set them in the
 # Render dashboard for each service after the first deploy.
+#
+# Service names below match the actual live deployment (kora-app / koraai /
+# cos-agent-redis) as of 2026-09-02 — see DEPLOY.md for current status.
 
 services:
   # --------------------------------------------------------------------------
   # Next.js web app
   # --------------------------------------------------------------------------
   - type: web
-    name: cos-agent-web
+    name: kora-app
     runtime: node
     plan: free
     buildCommand: npm ci && npx prisma generate && npm run build
@@ -66,7 +69,7 @@ services:
   # service and rely on the on-demand "Refresh" button (see DEPLOY.md option C).
   # --------------------------------------------------------------------------
   - type: worker
-    name: cos-agent-worker
+    name: koraai
     runtime: node
     plan: starter
     buildCommand: npm ci && npx prisma generate
