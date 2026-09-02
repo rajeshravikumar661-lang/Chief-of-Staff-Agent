@@ -1,27 +1,12 @@
 import { AgendaItem } from "@/components/AgendaItem";
+import { nowHHMM, relatedAttention } from "@/lib/agenda";
 import type { AgendaItem as AgendaItemDTO, NeedsAttentionItem } from "@/lib/types";
-
-const STOPWORDS = new Set(["the", "with", "and", "for", "today", "meeting", "call", "review", "standup", "product"]);
-
-/** Best-effort match: does a needs-attention item mention a word from this event's title? */
-function relatedTo(eventTitle: string, attention: NeedsAttentionItem[]): NeedsAttentionItem[] {
-  const keywords = eventTitle
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter((w) => w.length >= 4 && !STOPWORDS.has(w));
-  if (keywords.length === 0) return [];
-  return attention.filter((a) => keywords.some((k) => a.text.toLowerCase().includes(k)));
-}
-
-function nowHHMM(): string {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
 
 /**
  * Vertical, time-led agenda (spec: "main working area"). Sorted by time,
- * next meeting visually emphasized, with prep prompts/warnings surfaced
- * inline when a needs-attention item can be matched to that event.
+ * the next meeting gets the focus treatment, past events are marked done,
+ * with prep prompts/warnings surfaced inline when a needs-attention item
+ * can be matched to that event.
  */
 export function AgendaTimeline({
   agenda,
@@ -36,7 +21,7 @@ export function AgendaTimeline({
     return (
       <ul className="space-y-4">
         {[0, 1, 2].map((i) => (
-          <li key={i} className="h-16 animate-pulse rounded-lg border border-hairline bg-paper-raised" />
+          <li key={i} className="h-16 animate-pulse rounded-2xl border border-hairline bg-paper-raised" />
         ))}
       </ul>
     );
@@ -44,7 +29,7 @@ export function AgendaTimeline({
 
   if (agenda.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-hairline p-8 text-center">
+      <div className="rounded-2xl border border-dashed border-hairline p-8 text-center">
         <p className="text-sm text-ink-soft">Nothing on the calendar today.</p>
       </div>
     );
@@ -62,8 +47,9 @@ export function AgendaTimeline({
           time={event.time}
           title={event.title}
           isNext={nextTime !== undefined && event.time === nextTime}
+          isPast={event.time < now}
           isLast={i === sorted.length - 1}
-          related={relatedTo(event.title, attention)}
+          related={relatedAttention(event.title, attention)}
         />
       ))}
     </ul>

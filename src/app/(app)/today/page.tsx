@@ -3,10 +3,15 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { api } from "@/lib/api";
+import { nowHHMM } from "@/lib/agenda";
 import { AgentRunCard } from "@/components/AgentRunCard";
 import { ChiefOfStaffSummary } from "@/components/ChiefOfStaffSummary";
+import { DateStrip } from "@/components/DateStrip";
+import { FocusNowCard } from "@/components/FocusNowCard";
 import { AttentionList } from "@/components/AttentionList";
 import { AgendaTimeline } from "@/components/AgendaTimeline";
+import { SectionHeader } from "@/components/SectionHeader";
+import { CircleIcon } from "@/components/Icons";
 import type { TodayResponse } from "@/lib/types";
 
 function buildDaySummary(today: TodayResponse | undefined): string {
@@ -53,7 +58,7 @@ export default function TodayPage() {
 
   if (todayError) {
     return (
-      <div className="rounded-lg border border-dashed border-hairline p-8 text-center">
+      <div className="rounded-2xl border border-dashed border-hairline p-8 text-center">
         <p className="text-sm text-ink">Couldn&apos;t load your day.</p>
         <p className="mt-1 text-sm text-ink-faint">{todayError instanceof Error ? todayError.message : "Something went wrong."}</p>
         <button
@@ -72,40 +77,60 @@ export default function TodayPage() {
   const suggestedActions = today?.suggestedActions ?? [];
   const recentRuns = today?.recentRuns ?? [];
 
+  const now = nowHHMM();
+  const nextEvent = [...agenda].sort((a, b) => a.time.localeCompare(b.time)).find((e) => e.time >= now);
+
   return (
-    <div className="space-y-10 pb-16">
-      {/* 1. Chief-of-Staff Summary */}
-      <ChiefOfStaffSummary
-        greeting={today?.greeting ?? "Good morning"}
-        summary={buildDaySummary(today)}
-        stats={{ meetings: agenda.length, attention: attention.length, commitments: followUps.length }}
-        loading={todayLoading}
-      />
+    <div className="pb-16">
+      {/* 1. Date label, greeting, one concise daily briefing */}
+      <ChiefOfStaffSummary greeting={today?.greeting ?? "Good morning"} summary={buildDaySummary(today)} loading={todayLoading} />
 
-      {/* 2. Needs Your Decision */}
-      <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Needs your decision</h2>
-        <AttentionList items={attention} loading={todayLoading} />
-      </section>
+      {/* 2. Horizontal 7-day date selector — mobile only, per design direction */}
+      <div className="mt-5 lg:hidden">
+        <DateStrip />
+      </div>
 
-      {/* 3 & 4. Agenda (main) + Follow-ups / Suggested actions (side on desktop) */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
-        <section>
-          <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Today&apos;s agenda</h2>
-          <AgendaTimeline agenda={agenda} attention={attention} loading={todayLoading} />
-        </section>
-
+      <div className="mt-6 lg:mt-8 lg:grid lg:grid-cols-[1fr_340px] lg:items-start lg:gap-10">
+        {/* Main column: Focus Now + agenda timeline */}
         <div className="space-y-8">
+          {/* 3. Focus Now card */}
+          <FocusNowCard
+            event={nextEvent}
+            attention={attention}
+            suggestedActions={suggestedActions}
+            onRunAction={runSuggestedAction}
+            loading={todayLoading}
+          />
+
+          {/* 4. Agenda timeline */}
+          <section id="agenda-timeline">
+            <SectionHeader title="Today's agenda" />
+            <AgendaTimeline agenda={agenda} attention={attention} loading={todayLoading} />
+          </section>
+        </div>
+
+        {/* Right column on desktop; stacks below the agenda on mobile */}
+        <div className="mt-8 space-y-8 lg:mt-0">
+          {/* 5. Needs your decision (compact) */}
           <section>
-            <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Follow-ups</h2>
+            <SectionHeader title="Needs your decision" count={attention.length} tone="warm" />
+            <AttentionList items={attention} loading={todayLoading} />
+          </section>
+
+          <section>
+            <SectionHeader title="Follow-ups" count={followUps.length} />
             {todayLoading ? (
-              <div className="h-12 animate-pulse rounded-lg border border-hairline bg-paper-raised" />
+              <div className="h-12 animate-pulse rounded-2xl border border-hairline bg-paper-raised" />
             ) : followUps.length === 0 ? (
               <p className="text-sm text-ink-faint">No open follow-ups — you&apos;re all caught up.</p>
             ) : (
               <ul className="space-y-2">
                 {followUps.map((item) => (
-                  <li key={item.id} className="rounded-lg border border-hairline bg-paper-raised p-3 text-sm text-ink">
+                  <li
+                    key={item.id}
+                    className="flex items-center gap-2.5 rounded-2xl border border-hairline bg-paper-raised px-3 py-2.5 text-sm text-ink shadow-sm"
+                  >
+                    <CircleIcon className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
                     {item.text}
                   </li>
                 ))}
@@ -114,7 +139,7 @@ export default function TodayPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Suggested actions</h2>
+            <SectionHeader title="Suggested actions" />
             {todayLoading ? (
               <div className="h-8 animate-pulse rounded-md border border-hairline bg-paper-raised" />
             ) : suggestedActions.length === 0 ? (
@@ -126,7 +151,7 @@ export default function TodayPage() {
                     key={action.id}
                     onClick={() => runSuggestedAction(action.goal)}
                     disabled={!action.goal}
-                    className="rounded-md border border-hairline-strong px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-paper-raised disabled:opacity-50"
+                    className="rounded-full border border-hairline-strong px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-paper-raised disabled:opacity-50"
                   >
                     {action.label}
                   </button>
@@ -141,20 +166,20 @@ export default function TodayPage() {
               </div>
             )}
           </section>
+
+          {/* Recent agent activity — secondary, low visual weight */}
+          {recentRuns.length > 0 && (
+            <section className="border-t border-hairline pt-6 opacity-90">
+              <SectionHeader title="Agent activity" />
+              <div className="space-y-2">
+                {recentRuns.map((r) => (
+                  <AgentRunCard key={r.id} runId={r.id} collapsedByDefault linkToDetail />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </div>
-
-      {/* 5. Recent agent activity — secondary, low visual weight */}
-      {recentRuns.length > 0 && (
-        <section className="border-t border-hairline pt-6 opacity-90">
-          <h2 className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-faint">Recent agent activity</h2>
-          <div className="space-y-2">
-            {recentRuns.map((r) => (
-              <AgentRunCard key={r.id} runId={r.id} collapsedByDefault linkToDetail />
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

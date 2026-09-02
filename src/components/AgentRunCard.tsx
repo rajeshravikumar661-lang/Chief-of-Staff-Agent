@@ -8,6 +8,14 @@ import { AgentStepRow } from "@/components/AgentStepRow";
 import { StatusPill } from "@/components/StatusPill";
 import type { AgentRunDTO } from "@/lib/types";
 import { cn } from "@/lib/ui";
+import { AgentIcon, ChevronDownIcon, type AgentIconName } from "@/components/Icons";
+import { agentIcon } from "@/lib/agenda";
+
+const AGENT_TONE: Record<AgentIconName, string> = {
+  briefing: "bg-focus-soft text-focus",
+  research: "bg-success-soft text-success",
+  comms: "bg-accent-soft text-accent",
+};
 
 /**
  * The trust-building component (spec §6) — one generic timeline reused on
@@ -38,6 +46,7 @@ export function AgentRunCard({
   }
 
   const doneSteps = run.steps.filter((s) => s.status === "succeeded").length;
+  const agentType = agentIcon(run.goal);
 
   async function approve(stepId: string) {
     await api.approveStep(run!.id, stepId);
@@ -52,16 +61,21 @@ export function AgentRunCard({
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
       >
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-ink">{run.goal}</p>
-          <p className="mt-0.5 text-xs text-ink-soft">
-            {doneSteps}/{run.steps.length} steps
-            {run.summary ? ` · ${run.summary}` : ""}
-          </p>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", AGENT_TONE[agentType])} aria-hidden>
+            <AgentIcon name={agentType} className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-ink">{run.goal}</p>
+            <p className="mt-0.5 text-xs text-ink-soft">
+              {doneSteps}/{run.steps.length} steps
+              {run.summary ? ` · ${run.summary}` : ""}
+            </p>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <StatusPill status={run.status} />
-          <span className={cn("text-ink-faint transition-transform", expanded && "rotate-180")}>⌄</span>
+          <ChevronDownIcon className={cn("h-4 w-4 text-ink-faint transition-transform", expanded && "rotate-180")} aria-hidden />
         </div>
       </button>
 

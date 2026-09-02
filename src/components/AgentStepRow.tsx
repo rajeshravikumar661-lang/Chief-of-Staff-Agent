@@ -1,15 +1,17 @@
+import type { ComponentType, SVGProps } from "react";
 import { cn } from "@/lib/ui";
 import type { AgentStepDTO } from "@/lib/types";
 import { ApprovalCard } from "@/components/ApprovalCard";
+import { CheckIcon, CircleIcon, LoaderIcon, MinusIcon, WarningIcon, XIcon } from "@/components/Icons";
 
-const ICON: Record<AgentStepDTO["status"], string> = {
-  pending: "○",
-  running: "◐",
-  succeeded: "✓",
-  failed: "✗",
-  awaiting_approval: "⚠",
-  rejected: "✗",
-  skipped: "–",
+const ICON: Record<AgentStepDTO["status"], ComponentType<SVGProps<SVGSVGElement>>> = {
+  pending: CircleIcon,
+  running: LoaderIcon,
+  succeeded: CheckIcon,
+  failed: XIcon,
+  awaiting_approval: WarningIcon,
+  rejected: XIcon,
+  skipped: MinusIcon,
 };
 
 const ICON_COLOR: Record<AgentStepDTO["status"], string> = {
@@ -38,13 +40,12 @@ export function AgentStepRow({
 }) {
   const dimmed = step.status === "pending";
   const struck = step.status === "rejected";
+  const StepIcon = ICON[step.status];
 
   return (
     <li className="py-2">
       <div className="flex items-start gap-3">
-        <span className={cn("mt-0.5 w-4 shrink-0 text-center text-sm", ICON_COLOR[step.status])} aria-hidden>
-          {ICON[step.status]}
-        </span>
+        <StepIcon className={cn("mt-0.5 h-4 w-4 shrink-0", ICON_COLOR[step.status])} aria-hidden />
         <div className="min-w-0 flex-1">
           <p className={cn("text-sm text-ink", dimmed && "text-ink-faint", struck && "text-ink-faint line-through")}>{step.title}</p>
           {step.summary && !dimmed && <p className="mt-0.5 text-xs text-ink-soft">{step.summary}</p>}

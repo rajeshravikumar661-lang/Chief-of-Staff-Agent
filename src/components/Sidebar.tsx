@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/ui";
 import { PRIMARY_NAV, SETTINGS_NAV } from "@/lib/nav";
 import { useNavBadges } from "@/lib/useNavBadges";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { NavIcon, SignOutIcon } from "@/components/Icons";
 
 const BADGE_KEY: Record<string, "planner" | "activity"> = {
   "/planner": "planner",
@@ -44,9 +46,7 @@ export function Sidebar({ userName }: { userName?: string | null }) {
                 active ? "bg-brand-soft font-medium text-brand-ink" : "text-ink-soft hover:bg-paper-raised hover:text-ink",
               )}
             >
-              <span className="w-4 text-center text-ink-faint" aria-hidden>
-                {item.icon}
-              </span>
+              <NavIcon name={item.icon} className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
               <span className="flex-1">{item.label}</span>
               {count > 0 && (
                 <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent">
@@ -59,6 +59,7 @@ export function Sidebar({ userName }: { userName?: string | null }) {
       </nav>
 
       <div className="border-t border-hairline p-2">
+        <ThemeToggle />
         <Link
           href={SETTINGS_NAV.href}
           className={cn(
@@ -68,15 +69,17 @@ export function Sidebar({ userName }: { userName?: string | null }) {
               : "text-ink-soft hover:bg-paper-raised hover:text-ink",
           )}
         >
-          <span className="w-4 text-center text-ink-faint" aria-hidden>
-            {SETTINGS_NAV.icon}
-          </span>
+          <NavIcon name={SETTINGS_NAV.icon} className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
           {SETTINGS_NAV.label}
         </Link>
       </div>
 
       <div className="border-t border-hairline p-3">
-        <Link href="/api/auth/signout" className="block rounded-md px-2.5 py-1.5 text-xs text-ink-faint hover:bg-paper-raised">
+        <Link
+          href="/api/auth/signout"
+          className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs text-ink-faint hover:bg-paper-raised"
+        >
+          <SignOutIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />
           Sign out
         </Link>
       </div>

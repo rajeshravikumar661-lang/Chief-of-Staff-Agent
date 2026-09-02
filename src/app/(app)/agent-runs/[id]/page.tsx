@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { api } from "@/lib/api";
 import { AgentRunCard } from "@/components/AgentRunCard";
 import { StatusPill } from "@/components/StatusPill";
+import { ArrowLeftIcon } from "@/components/Icons";
 
 const CANCELLABLE_STATUSES = new Set(["pending", "planning", "in_progress", "awaiting_approval", "verifying"]);
 
@@ -33,8 +34,9 @@ export default function AgentRunDetailPage({ params }: { params: Promise<{ id: s
 
   return (
     <div>
-      <Link href="/agent-runs" className="text-xs text-ink-soft underline decoration-dotted hover:text-ink">
-        ← All runs
+      <Link href="/agent-runs" className="inline-flex items-center gap-1 text-xs text-ink-soft underline decoration-dotted hover:text-ink">
+        <ArrowLeftIcon className="h-3.5 w-3.5" aria-hidden />
+        All runs
       </Link>
 
       <div className="mt-3 mb-6 flex items-start justify-between gap-4">

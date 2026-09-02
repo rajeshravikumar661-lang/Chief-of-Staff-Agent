@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/ui";
+import { ArrowLeftIcon, ArrowRightIcon } from "@/components/Icons";
 import type { CalendarEventDTO } from "@/lib/types";
 
 /** Monday 00:00 (local) of the week containing `d`. */
@@ -95,9 +96,10 @@ export default function CalendarPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => shiftWeek(-1)}
-            className="rounded-md border border-hairline-strong px-2.5 py-1 text-xs font-medium text-ink-soft transition hover:bg-paper-raised"
+            className="flex items-center gap-1 rounded-md border border-hairline-strong px-2.5 py-1 text-xs font-medium text-ink-soft transition hover:bg-paper-raised"
           >
-            ← Prev
+            <ArrowLeftIcon className="h-3.5 w-3.5" aria-hidden />
+            Prev
           </button>
           <button
             onClick={() => setWeekStart(mondayOf(new Date()))}
@@ -107,9 +109,10 @@ export default function CalendarPage() {
           </button>
           <button
             onClick={() => shiftWeek(1)}
-            className="rounded-md border border-hairline-strong px-2.5 py-1 text-xs font-medium text-ink-soft transition hover:bg-paper-raised"
+            className="flex items-center gap-1 rounded-md border border-hairline-strong px-2.5 py-1 text-xs font-medium text-ink-soft transition hover:bg-paper-raised"
           >
-            Next →
+            Next
+            <ArrowRightIcon className="h-3.5 w-3.5" aria-hidden />
           </button>
         </div>
       </div>

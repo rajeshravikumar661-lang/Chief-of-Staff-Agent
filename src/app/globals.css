@@ -31,30 +31,52 @@
 
   --color-success: #2f6a4a;
   --color-success-soft: #e3efe6;
+
+  /* Focus/work accent for the Today page (mockup's "soft blue") — a distinct
+     hue from the sage-green brand color, used only for focus/next-up state. */
+  --color-focus: #3e6b96;
+  --color-focus-soft: #e4edf5;
+  --color-focus-ink: #1f3a52;
 }
 
-@media (prefers-color-scheme: dark) {
-  @theme {
-    --color-paper: #161512;
-    --color-paper-raised: #1e1c19;
-    --color-ink: #f2efe9;
-    --color-ink-soft: #c7c1b6;
-    --color-ink-faint: #8a847b;
-    --color-hairline: #322f2a;
-    --color-hairline-strong: #423e37;
+/*
+ * Theme: light is the default look regardless of OS preference — the app
+ * only switches to dark when the user explicitly picks it (ThemeToggle sets
+ * data-theme="dark" on <html> and persists the choice to localStorage; a
+ * blocking inline script in the root layout applies it before first paint
+ * so there's no flash). No prefers-color-scheme fallback on purpose: the
+ * request was "light by default, with an option to switch to dark."
+ */
+:root[data-theme="dark"] {
+  --color-paper: #161512;
+  --color-paper-raised: #1e1c19;
+  --color-ink: #f2efe9;
+  --color-ink-soft: #c7c1b6;
+  --color-ink-faint: #8a847b;
+  --color-hairline: #322f2a;
+  --color-hairline-strong: #423e37;
 
-    --color-brand: #7fae94;
-    --color-brand-soft: #1e2b23;
-    --color-brand-ink: #d7ead9;
+  --color-brand: #7fae94;
+  --color-brand-soft: #1e2b23;
+  --color-brand-ink: #d7ead9;
 
-    --color-accent: #d68a5f;
-    --color-accent-soft: #302119;
+  --color-accent: #d68a5f;
+  --color-accent-soft: #302119;
 
-    --color-critical-soft: #351a19;
-    --color-high-soft: #302119;
-    --color-medium-soft: #2c2717;
-    --color-low-soft: #26241f;
-    --color-success-soft: #1b2921;
+  --color-critical-soft: #351a19;
+  --color-high-soft: #302119;
+  --color-medium-soft: #2c2717;
+  --color-low-soft: #26241f;
+  --color-success-soft: #1b2921;
+
+  --color-focus: #86afd6;
+  --color-focus-soft: #1b2a38;
+  --color-focus-ink: #dce9f5;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
   }
 }
 
@@ -62,6 +84,12 @@ body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    transition: background-color 150ms ease, color 150ms ease;
+  }
 }
 
 ::selection {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/ui";
+import { ChatIcon } from "@/components/Icons";
 
 /**
  * Persistent but de-emphasized chat entry point (spec §5: "a control
@@ -21,7 +22,7 @@ export function ChatBar() {
         "fixed bottom-5 right-5 z-30 hidden items-center gap-2 rounded-full border border-hairline-strong bg-paper-raised px-4 py-2.5 text-sm text-ink-soft shadow-sm transition hover:text-ink hover:shadow-md lg:flex",
       )}
     >
-      <span aria-hidden>💬</span>
+      <ChatIcon className="h-4 w-4" aria-hidden />
       Ask your Chief of Staff
     </Link>
   );

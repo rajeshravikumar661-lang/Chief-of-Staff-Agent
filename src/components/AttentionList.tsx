@@ -1,22 +1,24 @@
 import Link from "next/link";
-import { PriorityBadge } from "@/components/PriorityBadge";
 import { cn } from "@/lib/ui";
+import { ChevronRightIcon, DotIcon, WarningIcon } from "@/components/Icons";
 import type { NeedsAttentionItem, Priority } from "@/lib/types";
 
 const PRIORITY_ORDER: Record<Priority, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
-const RAIL_COLOR: Record<Priority, string> = {
-  CRITICAL: "before:bg-critical",
-  HIGH: "before:bg-high",
-  MEDIUM: "before:bg-medium",
-  LOW: "before:bg-low",
+/** Coral for urgent (critical/high), quiet neutral for medium/low — matches the mockup's icon-square rows. */
+const ICON_TONE: Record<Priority, string> = {
+  CRITICAL: "bg-accent-soft text-accent",
+  HIGH: "bg-accent-soft text-accent",
+  MEDIUM: "bg-paper text-ink-faint",
+  LOW: "bg-paper text-ink-faint",
 };
 
 /**
  * "Needs Your Decision" — the highest-priority content on the page.
- * Critical/high items sort first; priority is signalled with a thin colored
- * rail + badge, not a loud background fill, so the whole section stays
- * scannable rather than alarming (spec: "stand out without being stressful").
+ * Critical/high items sort first; priority is signalled with a small
+ * colored icon square, not a loud background fill, so the whole section
+ * stays scannable rather than alarming (spec: "stand out without being
+ * stressful"). Compact rows so this reads well even on mobile.
  */
 export function AttentionList({
   items,
@@ -29,7 +31,7 @@ export function AttentionList({
     return (
       <ul className="space-y-2">
         {[0, 1].map((i) => (
-          <li key={i} className="h-14 animate-pulse rounded-lg border border-hairline bg-paper-raised" />
+          <li key={i} className="h-14 animate-pulse rounded-2xl border border-hairline bg-paper-raised" />
         ))}
       </ul>
     );
@@ -37,7 +39,7 @@ export function AttentionList({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-hairline p-5 text-center">
+      <div className="rounded-2xl border border-dashed border-hairline p-5 text-center">
         <p className="text-sm text-ink-soft">Nothing needs a decision right now.</p>
       </div>
     );
@@ -47,24 +49,25 @@ export function AttentionList({
 
   return (
     <ul className="space-y-2">
-      {sorted.map((item) => (
-        <li
-          key={item.id}
-          className={cn(
-            "relative flex items-start gap-3 overflow-hidden rounded-lg border border-hairline bg-paper-raised py-3 pl-4 pr-3",
-            "before:absolute before:inset-y-0 before:left-0 before:w-1",
-            RAIL_COLOR[item.priority],
-          )}
-        >
-          <PriorityBadge priority={item.priority} className="mt-0.5 shrink-0" />
-          <p className="min-w-0 flex-1 text-sm text-ink">{item.text}</p>
-          {item.refUrl && (
-            <Link href={item.refUrl} className="shrink-0 self-center text-xs font-medium text-brand underline decoration-dotted">
-              Review
-            </Link>
-          )}
-        </li>
-      ))}
+      {sorted.map((item) => {
+        const row = (
+          <div className="flex items-center gap-3 rounded-2xl border border-hairline bg-paper-raised px-3 py-2.5 shadow-sm transition hover:border-hairline-strong">
+            <span
+              className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", ICON_TONE[item.priority])}
+              aria-hidden
+            >
+              {item.priority === "CRITICAL" || item.priority === "HIGH" ? (
+                <WarningIcon className="h-4 w-4" />
+              ) : (
+                <DotIcon className="h-4 w-4" />
+              )}
+            </span>
+            <p className="min-w-0 flex-1 text-sm text-ink">{item.text}</p>
+            {item.refUrl && <ChevronRightIcon className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />}
+          </div>
+        );
+        return <li key={item.id}>{item.refUrl ? <Link href={item.refUrl}>{row}</Link> : row}</li>;
+      })}
     </ul>
   );
 }
