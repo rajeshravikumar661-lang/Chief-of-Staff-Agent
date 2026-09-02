@@ -113,7 +113,7 @@ export function MobileNav() {
 
         <Link
           href="/chat"
-          aria-label="Ask your Chief of Staff"
+          aria-label="Ask Kora"
           className="-mt-4 flex flex-1 flex-col items-center justify-end gap-0.5 pb-2 text-[11px] text-brand-ink"
         >
           <span

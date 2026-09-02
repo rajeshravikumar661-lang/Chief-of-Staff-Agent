@@ -4,7 +4,7 @@
  * sentence about the day — no tiles, no stat chips competing for attention.
  * (Counts now live as small badges on the section headers they describe.)
  */
-export function ChiefOfStaffSummary({
+export function KoraSummary({
   greeting,
   summary,
   loading,

@@ -121,7 +121,7 @@ async function exchange(
           headers: {
             Authorization: `Bearer ${accessToken}`,
             Accept: "application/vnd.github+json",
-            "User-Agent": "chief-of-staff-agent",
+            "User-Agent": "kora",
           },
         });
         const uj: unknown = await ur.json();

@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata = {
-  title: "Chief of Staff Agent",
-  description: "An AI Chief of Staff that watches your work, remembers your commitments, and handles the busywork.",
+  title: "Kora",
+  description: "Kora is an AI chief of staff that watches your work, remembers your commitments, and handles the busywork.",
 };
 
 const THEME_INIT_SCRIPT = `

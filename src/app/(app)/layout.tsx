@@ -31,7 +31,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       {!DEMO_MODE && <TimezoneSync currentTz={tz ?? ""} />}
       {DEMO_MODE && <DemoModeBanner />}
       <div className="flex items-center justify-between border-b border-hairline bg-paper px-4 py-3 lg:hidden">
-        <p className="font-serif text-lg font-semibold text-ink">Chief of Staff</p>
+        <p className="font-serif text-lg font-semibold text-ink">Kora</p>
         {userName && <p className="truncate text-xs text-ink-faint">{userName}</p>}
       </div>
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">

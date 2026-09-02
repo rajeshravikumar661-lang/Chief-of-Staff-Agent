@@ -23,7 +23,7 @@ export function ChatBar() {
       )}
     >
       <ChatIcon className="h-4 w-4" aria-hidden />
-      Ask your Chief of Staff
+      Ask Kora
     </Link>
   );
 }

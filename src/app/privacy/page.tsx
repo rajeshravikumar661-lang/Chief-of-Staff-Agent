@@ -1,4 +1,4 @@
-export const metadata = { title: "Privacy Policy · Chief of Staff Agent" };
+export const metadata = { title: "Privacy Policy · Kora" };
 
 export default function PrivacyPage() {
   return (
@@ -10,7 +10,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="mb-2 text-base font-medium text-ink">What this app does</h2>
           <p>
-            Chief of Staff Agent connects to your Google account (Gmail, Calendar, Drive) to help you
+            Kora connects to your Google account (Gmail, Calendar, Drive) to help you
             track commitments, prepare for meetings, and manage your inbox. It only acts on data you
             explicitly connect, and only takes consequential actions (like sending an email) after you
             approve them.

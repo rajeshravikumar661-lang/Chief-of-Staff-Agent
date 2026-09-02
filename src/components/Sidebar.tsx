@@ -29,7 +29,7 @@ export function Sidebar({ userName }: { userName?: string | null }) {
   return (
     <aside className="sticky top-0 hidden h-screen w-[236px] shrink-0 flex-col border-r border-hairline bg-paper lg:flex">
       <div className="px-4 py-5">
-        <p className="font-serif text-lg font-semibold text-ink">Chief of Staff</p>
+        <p className="font-serif text-lg font-semibold text-ink">Kora</p>
         {userName && <p className="mt-0.5 truncate text-xs text-ink-faint">{userName}</p>}
       </div>
 

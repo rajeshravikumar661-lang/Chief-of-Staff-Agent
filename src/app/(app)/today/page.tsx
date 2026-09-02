@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { api } from "@/lib/api";
 import { nowHHMM } from "@/lib/agenda";
 import { AgentRunCard } from "@/components/AgentRunCard";
-import { ChiefOfStaffSummary } from "@/components/ChiefOfStaffSummary";
+import { KoraSummary } from "@/components/KoraSummary";
 import { DateStrip } from "@/components/DateStrip";
 import { FocusNowCard } from "@/components/FocusNowCard";
 import { AttentionList } from "@/components/AttentionList";
@@ -83,7 +83,7 @@ export default function TodayPage() {
   return (
     <div className="pb-16">
       {/* 1. Date label, greeting, one concise daily briefing */}
-      <ChiefOfStaffSummary greeting={today?.greeting ?? "Good morning"} summary={buildDaySummary(today)} loading={todayLoading} />
+      <KoraSummary greeting={today?.greeting ?? "Good morning"} summary={buildDaySummary(today)} loading={todayLoading} />
 
       {/* 2. Horizontal 7-day date selector — mobile only, per design direction */}
       <div className="mt-5 lg:hidden">

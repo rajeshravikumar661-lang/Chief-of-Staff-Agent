@@ -1,6 +1,6 @@
-# Chief of Staff Agent
+# Kora
 
-An AI "Chief of Staff" that connects to your work tools, understands what's happening
+Kora is an AI "chief of staff" that connects to your work tools, understands what's happening
 across them, identifies priorities, and takes useful actions **with your approval**.
 
 Core loop: **Observe → Understand → Prioritize → Plan → Ask for approval → Execute → Verify → Report.**

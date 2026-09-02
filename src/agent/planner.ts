@@ -61,7 +61,7 @@ export async function plan(input: PlanInput): Promise<PlannedStep[]> {
   for (const entry of catalog) permissionByTool.set(entry.name, entry.permission);
 
   const systemPrompt = [
-    "You are the planning module of an AI Chief of Staff agent.",
+    "You are the planning module of Kora, an AI chief of staff agent.",
     "Break the user's goal into a short ordered list of concrete steps.",
     "Output ONLY a single JSON object of the form:",
     '{ "steps": [ { "title": string, "tool": string | null, "arguments": object } ] }',

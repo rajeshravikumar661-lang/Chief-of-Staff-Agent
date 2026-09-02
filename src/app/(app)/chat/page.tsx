@@ -94,7 +94,7 @@ export default function ChatPage() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Message your Chief of Staff…"
+          placeholder="Message Kora…"
           className="min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-ink-faint focus:outline-none"
         />
         <button

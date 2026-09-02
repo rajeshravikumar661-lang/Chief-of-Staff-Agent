@@ -1,6 +1,6 @@
 import { WhatsAppConnect } from "@/components/WhatsAppConnect";
 
-export const metadata = { title: "WhatsApp · Chief of Staff" };
+export const metadata = { title: "WhatsApp · Kora" };
 
 export default function WhatsAppPage() {
   return (

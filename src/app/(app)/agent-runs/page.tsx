@@ -42,7 +42,7 @@ export default function AgentRunsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-serif text-2xl font-semibold text-ink">Agent runs</h1>
-          <p className="mt-1 text-sm text-ink-soft">Every task your Chief of Staff has worked on, live and past.</p>
+          <p className="mt-1 text-sm text-ink-soft">Every task Kora has worked on, live and past.</p>
         </div>
       </div>
 
