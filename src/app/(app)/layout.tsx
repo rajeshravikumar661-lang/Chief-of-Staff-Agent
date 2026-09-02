@@ -36,8 +36,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       </div>
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <Sidebar userName={userName} />
-        <main className="min-w-0 flex-1 px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8 lg:pb-8">
-          <div className="mx-auto max-w-4xl">{children}</div>
+        <main className="min-w-0 flex-1 px-3 py-4 pb-24 sm:px-5 lg:px-7 lg:py-7 lg:pb-7">
+          <div className="desk-surface mx-auto max-w-4xl">{children}</div>
         </main>
         <ChatBar />
         <MobileNav />

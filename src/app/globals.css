@@ -158,3 +158,44 @@ body {
   background-image: radial-gradient(rgba(58, 46, 32, 0.05) 1px, transparent 1px);
   background-size: 5px 5px;
 }
+
+/*
+ * The desk blotter: every app screen sits on this kraft surface, the way
+ * the 4a mockup frames its dashboard. Cards inside read as paper on a desk.
+ */
+.desk-surface {
+  background-color: var(--color-kraft);
+  background-image: radial-gradient(rgba(58, 46, 32, 0.06) 1px, transparent 1px);
+  background-size: 5px 5px;
+  border: 1px solid color-mix(in srgb, var(--color-kraft) 72%, #000 8%);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 3px rgba(58, 46, 32, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  padding: 1.25rem 1.15rem;
+}
+@media (min-width: 1024px) {
+  .desk-surface {
+    padding: 2rem 2.15rem;
+  }
+}
+
+/*
+ * Cards on the desk. Existing components use
+ * `rounded-2xl border border-hairline bg-paper-raised` — re-cast that exact
+ * combo as a cream letter/note: tiny radius, kraft hairline, real drop shadow.
+ */
+.desk-surface .bg-paper-raised {
+  background-color: var(--color-paper-raised) !important;
+}
+.desk-surface .rounded-2xl,
+.desk-surface .rounded-xl {
+  border-radius: var(--radius-card) !important;
+}
+.desk-surface .border-hairline {
+  border-color: var(--color-hairline-strong) !important;
+}
+.desk-surface .rounded-2xl.border,
+.desk-surface .rounded-xl.border {
+  box-shadow: var(--shadow-card);
+}
