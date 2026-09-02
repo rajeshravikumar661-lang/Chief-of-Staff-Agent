@@ -224,7 +224,7 @@ export async function GET(
   const { provider } = await params;
 
   if (!isM6Provider(provider)) {
-    return redirect(`/connections?error=${encodeURIComponent(provider)}`);
+    return redirect(`/settings/integrations?error=${encodeURIComponent(provider)}`);
   }
 
   const u = await requireUser("connections/callback");
@@ -278,9 +278,9 @@ export async function GET(
       result: { provider, externalAccountId: result.externalAccountId },
     });
 
-    return redirect(`/connections?connected=${encodeURIComponent(provider)}`);
+    return redirect(`/settings/integrations?connected=${encodeURIComponent(provider)}`);
   } catch (e) {
     console.error(`[oauth callback:${provider}]`, e);
-    return redirect(`/connections?error=${encodeURIComponent(provider)}`);
+    return redirect(`/settings/integrations?error=${encodeURIComponent(provider)}`);
   }
 }

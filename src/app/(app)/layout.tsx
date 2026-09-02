@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { DEMO_MODE } from "@/lib/demo";
 import { Sidebar } from "@/components/Sidebar";
+import { MobileNav } from "@/components/MobileNav";
 import { ChatBar } from "@/components/ChatBar";
 import { DemoModeBanner } from "@/components/DemoModeBanner";
 import { AutoSync } from "@/components/AutoSync";
@@ -29,12 +30,17 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       {!DEMO_MODE && <AutoSync />}
       {!DEMO_MODE && <TimezoneSync currentTz={tz ?? ""} />}
       {DEMO_MODE && <DemoModeBanner />}
+      <div className="flex items-center justify-between border-b border-hairline bg-paper px-4 py-3 lg:hidden">
+        <p className="font-serif text-lg font-semibold text-ink">Chief of Staff</p>
+        {userName && <p className="truncate text-xs text-ink-faint">{userName}</p>}
+      </div>
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <Sidebar userName={userName} />
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <main className="min-w-0 flex-1 px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:py-8 lg:pb-8">
           <div className="mx-auto max-w-4xl">{children}</div>
         </main>
         <ChatBar />
+        <MobileNav />
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { api } from "@/lib/api";
 import { formatClock, formatRelativeTime } from "@/lib/ui";
@@ -12,6 +12,7 @@ import { formatClock, formatRelativeTime } from "@/lib/ui";
  * timeline UI. Supports ?runId= to scope to one run.
  */
 export default function AuditLogPage() {
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const runId = searchParams.get("runId") ?? undefined;
 
@@ -31,7 +32,7 @@ export default function AuditLogPage() {
           <span className="text-ink-soft">
             Filtered to run <span className="font-mono text-xs text-ink">{runId}</span>
           </span>
-          <Link href="/audit-log" className="text-xs text-brand underline decoration-dotted">
+          <Link href={pathname} className="text-xs text-brand underline decoration-dotted">
             Clear filter
           </Link>
         </div>

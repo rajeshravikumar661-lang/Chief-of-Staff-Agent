@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { api, ApiError } from "@/lib/api";
 import { ConnectionCard } from "@/components/ConnectionCard";
@@ -20,6 +20,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 export default function ConnectionsPage() {
   const { data: connections, isLoading, mutate } = useSWR("connections", api.connections);
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
@@ -39,8 +40,8 @@ export default function ConnectionsPage() {
       });
     }
     mutate();
-    router.replace("/connections");
-  }, [searchParams, router, mutate]);
+    router.replace(pathname);
+  }, [searchParams, router, pathname, mutate]);
 
   const google = connections?.filter((c) => GOOGLE_PROVIDERS.has(c.provider)) ?? [];
   const m6 =
