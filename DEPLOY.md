@@ -17,17 +17,17 @@
 `curl https://kora-app.onrender.com/api/health` → `{"status":"ok"}`.
 `/today` correctly 307s to `/signin` unauthenticated — auth is enforced, not bypassed.
 
-### Older deployments — deprecated, safe to delete
+### Older deployments — cleaned up 2026-09-02
 
-These predate `kora-app` and all point at the **same Supabase DB**, so they are running
-duplicates, not a staging/prod split:
+These predated `kora-app` and all pointed at the **same Supabase DB**, so they were
+running duplicates, not a staging/prod split. Deleted where access allowed:
 
-| Deployment | URL | Note |
+| Deployment | URL | Status |
 |---|---|---|
-| Render `cos-agent-web` | https://cos-agent-web.onrender.com | still auto-deploys from `main`; superseded by `kora-app` |
-| Render `Kora` (stray) | https://kora-s86u.onrender.com | half-created, never built green; auto-deploy already disabled — delete it |
-| Vercel `cos-agent-basu` | https://cos-agent-basu.vercel.app | old host; WhatsApp can't work on Vercel serverless |
-| Vercel `chief-of-staff-agent-sigma` | https://chief-of-staff-agent-sigma.vercel.app | oldest host |
+| Render `cos-agent-web` | https://cos-agent-web.onrender.com | ✅ deleted |
+| Render `Kora` (stray) | https://kora-s86u.onrender.com | not found under the `basu` Render workspace — already gone or on a different account |
+| Vercel `cos-agent-basu` | https://cos-agent-basu.vercel.app | ⏳ pending — `vercel remove` blocked by permission classifier, needs a manual run |
+| Vercel `chief-of-staff-agent-sigma` | https://chief-of-staff-agent-sigma.vercel.app | ❌ not deletable from here — lives under a different Vercel account (rajeshravi's), not `basu` |
 
 Render `koraai` (`chief-of-staff-worker-e4be.onrender.com`) is the **background worker**
 (BullMQ: morning briefing / sync / reminders). Keep it if you want background automation;
