@@ -5,14 +5,11 @@ import useSWR from "swr";
 import { api } from "@/lib/api";
 import { nowHHMM } from "@/lib/agenda";
 import { AgentRunCard } from "@/components/AgentRunCard";
-import { KoraSummary } from "@/components/KoraSummary";
 import { DateStrip } from "@/components/DateStrip";
-import { FocusNowCard } from "@/components/FocusNowCard";
-import { AttentionList } from "@/components/AttentionList";
 import { AgendaTimeline } from "@/components/AgendaTimeline";
 import { SectionHeader } from "@/components/SectionHeader";
-import { CircleIcon } from "@/components/Icons";
-import type { TodayResponse } from "@/lib/types";
+import { cn } from "@/lib/ui";
+import type { NeedsAttentionItem, TodayResponse } from "@/lib/types";
 
 function buildDaySummary(today: TodayResponse | undefined): string {
   if (!today) return "";
@@ -45,6 +42,18 @@ function buildDaySummary(today: TodayResponse | undefined): string {
   return sentence.charAt(0).toUpperCase() + sentence.slice(1) + ".";
 }
 
+const WEEKDAY = new Date().toLocaleDateString(undefined, { weekday: "long" }).toLowerCase();
+
+/** A pinned reminder — a tilted sticky note with a strip of tape. */
+function StickyNote({ item, alt }: { item: NeedsAttentionItem; alt?: boolean }) {
+  return (
+    <div className={cn("sticky-note w-[170px] text-[15px] leading-snug", alt && "sticky-note--alt")}>
+      <span className="sticky-note__tape" aria-hidden />
+      {item.text}
+    </div>
+  );
+}
+
 export default function TodayPage() {
   const { data: today, error: todayError, isLoading: todayLoading, mutate: mutateToday } = useSWR("today", api.today);
   const [startedRunIds, setStartedRunIds] = useState<string[]>([]);
@@ -58,12 +67,12 @@ export default function TodayPage() {
 
   if (todayError) {
     return (
-      <div className="rounded-2xl border border-dashed border-hairline p-8 text-center">
+      <div className="card-paper p-8 text-center">
         <p className="text-sm text-ink">Couldn&apos;t load your day.</p>
         <p className="mt-1 text-sm text-ink-faint">{todayError instanceof Error ? todayError.message : "Something went wrong."}</p>
         <button
           onClick={() => mutateToday()}
-          className="mt-3 rounded-md border border-hairline-strong px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-paper-raised"
+          className="mt-3 rounded border border-hairline-strong px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-paper-raised"
         >
           Try again
         </button>
@@ -78,108 +87,153 @@ export default function TodayPage() {
   const recentRuns = today?.recentRuns ?? [];
 
   const now = nowHHMM();
-  const nextEvent = [...agenda].sort((a, b) => a.time.localeCompare(b.time)).find((e) => e.time >= now);
+  const sortedAgenda = [...agenda].sort((a, b) => a.time.localeCompare(b.time));
+  const nextEvent = sortedAgenda.find((e) => e.time >= now) ?? sortedAgenda[0];
+
+  // Pinned notes = the loud items (critical/high), max 3. The rest become letters.
+  const pinned = attention.filter((a) => a.priority === "CRITICAL" || a.priority === "HIGH").slice(0, 3);
+  const pinnedIds = new Set(pinned.map((p) => p.id));
+  const criticalCount = attention.filter((a) => a.priority === "CRITICAL").length;
+
+  const letters: { id: string; label: string; text: string; refUrl?: string; seal?: boolean }[] = [
+    ...attention
+      .filter((a) => !pinnedIds.has(a.id))
+      .map((a) => ({ id: a.id, label: a.priority === "CRITICAL" ? "NEEDS A DECISION" : "TO LOOK AT", text: a.text, refUrl: a.refUrl, seal: a.priority === "CRITICAL" })),
+    ...followUps.map((f) => ({ id: f.id, label: "FOLLOW-UP", text: f.text })),
+  ];
 
   return (
-    <div className="pb-16">
-      {/* 1. Date label, greeting, one concise daily briefing */}
-      <KoraSummary greeting={today?.greeting ?? "Good morning"} summary={buildDaySummary(today)} loading={todayLoading} />
+    <div className="pb-4">
+      {/* Header — "your desk, {weekday}" + the one-line brief */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h1 className="hand text-[2rem] font-bold leading-none text-ink sm:text-[2.4rem]">
+          {todayLoading ? (
+            <span className="inline-block h-8 w-56 animate-pulse rounded bg-paper-raised/60" />
+          ) : (
+            <>your desk, {WEEKDAY}</>
+          )}
+        </h1>
+        <span className="mono-label !text-ink-soft">
+          {criticalCount > 0 ? `${criticalCount} sealed urgent · ` : ""}
+          {pinned.length} pinned
+        </span>
+      </div>
+      {!todayLoading && (
+        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-soft">{buildDaySummary(today)}</p>
+      )}
 
-      {/* 2. Horizontal 7-day date selector — mobile only, per design direction */}
-      <div className="mt-5 lg:hidden">
+      {/* Mobile-only 7-day strip */}
+      <div className="mt-4 lg:hidden">
         <DateStrip />
       </div>
 
-      <div className="mt-6 lg:mt-8 lg:grid lg:grid-cols-[1fr_340px] lg:items-start lg:gap-10">
-        {/* Main column: Focus Now + agenda timeline */}
-        <div className="space-y-8">
-          {/* 3. Focus Now card */}
-          <FocusNowCard
-            event={nextEvent}
-            attention={attention}
-            suggestedActions={suggestedActions}
-            onRunAction={runSuggestedAction}
-            loading={todayLoading}
-          />
+      {/* Row: pinned notes + the ROLODEX "next up" card */}
+      <div className="mt-6 flex flex-wrap items-start gap-6">
+        {pinned.length > 0 && (
+          <div className="flex flex-wrap items-start gap-4 pt-2">
+            {pinned.map((item, i) => (
+              <StickyNote key={item.id} item={item} alt={i % 2 === 1} />
+            ))}
+          </div>
+        )}
 
-          {/* 4. Agenda timeline */}
-          <section id="agenda-timeline">
-            <SectionHeader title="Today's agenda" />
-            <AgendaTimeline agenda={agenda} attention={attention} loading={todayLoading} />
-          </section>
-        </div>
-
-        {/* Right column on desktop; stacks below the agenda on mobile */}
-        <div className="mt-8 space-y-8 lg:mt-0">
-          {/* 5. Needs your decision (compact) */}
-          <section>
-            <SectionHeader title="Needs your decision" count={attention.length} tone="warm" />
-            <AttentionList items={attention} loading={todayLoading} />
-          </section>
-
-          <section>
-            <SectionHeader title="Follow-ups" count={followUps.length} />
-            {todayLoading ? (
-              <div className="h-12 animate-pulse rounded-2xl border border-hairline bg-paper-raised" />
-            ) : followUps.length === 0 ? (
-              <p className="text-sm text-ink-faint">No open follow-ups — you&apos;re all caught up.</p>
-            ) : (
-              <ul className="space-y-2">
-                {followUps.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex items-center gap-2.5 rounded-2xl border border-hairline bg-paper-raised px-3 py-2.5 text-sm text-ink shadow-sm"
-                  >
-                    <CircleIcon className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />
-                    {item.text}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section>
-            <SectionHeader title="Suggested actions" />
-            {todayLoading ? (
-              <div className="h-8 animate-pulse rounded-md border border-hairline bg-paper-raised" />
-            ) : suggestedActions.length === 0 ? (
-              <p className="text-sm text-ink-faint">No suggestions right now.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {suggestedActions.map((action) => (
-                  <button
-                    key={action.id}
-                    onClick={() => runSuggestedAction(action.goal)}
-                    disabled={!action.goal}
-                    className="rounded-full border border-hairline-strong px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-paper-raised disabled:opacity-50"
-                  >
-                    {action.label}
-                  </button>
-                ))}
-              </div>
-            )}
-            {startedRunIds.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {startedRunIds.map((id) => (
-                  <AgentRunCard key={id} runId={id} collapsedByDefault />
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* Recent agent activity — secondary, low visual weight */}
-          {recentRuns.length > 0 && (
-            <section className="border-t border-hairline pt-6 opacity-90">
-              <SectionHeader title="Agent activity" />
-              <div className="space-y-2">
-                {recentRuns.map((r) => (
-                  <AgentRunCard key={r.id} runId={r.id} collapsedByDefault linkToDetail />
-                ))}
-              </div>
-            </section>
+        <div className="card-paper w-[260px] max-w-full px-[18px] py-4">
+          <p className="mono-label">Rolodex · Next up</p>
+          {nextEvent ? (
+            <>
+              <p className="mt-2 font-serif text-base font-semibold text-ink">{nextEvent.title}</p>
+              <p className="mt-1 font-serif text-[12.5px] text-ink-soft">{nextEvent.time}</p>
+            </>
+          ) : (
+            <p className="mt-2 font-serif text-[13px] text-ink-soft">Nothing else on the calendar today.</p>
           )}
         </div>
       </div>
+
+      {/* IN-TRAY — the letters */}
+      <div className="in-tray mt-6">
+        <p className="mono-label mb-2.5">
+          In-tray — {letters.length} letter{letters.length === 1 ? "" : "s"}
+        </p>
+        {todayLoading ? (
+          <div className="grid gap-3.5 pb-3.5 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="letter-card h-16 animate-pulse" />
+            ))}
+          </div>
+        ) : letters.length === 0 ? (
+          <p className="pb-3.5 font-serif text-[13px] text-[color:var(--color-band-ink)]/80">
+            In-tray is empty — nothing waiting on you.
+          </p>
+        ) : (
+          <div className="grid gap-3.5 pb-3.5 sm:grid-cols-2 lg:grid-cols-3">
+            {letters.map((l, i) => {
+              const body = (
+                <div className="letter-card h-full">
+                  {l.seal && i === 0 && <span className="wax-seal" aria-hidden />}
+                  <p className="mono-label !text-[9.5px]">{l.label}</p>
+                  <p className="mt-1.5 pr-6 font-serif text-[13.5px] font-semibold leading-snug text-ink">{l.text}</p>
+                </div>
+              );
+              return l.refUrl ? (
+                <a key={l.id} href={l.refUrl} target="_blank" rel="noreferrer" className="block">
+                  {body}
+                </a>
+              ) : (
+                <div key={l.id}>{body}</div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Today's agenda */}
+      <section id="agenda-timeline" className="mt-8">
+        <SectionHeader title="Today's agenda" />
+        <AgendaTimeline agenda={agenda} attention={attention} loading={todayLoading} />
+      </section>
+
+      {/* Suggested actions */}
+      <section className="mt-8">
+        <SectionHeader title="Suggested actions" />
+        {todayLoading ? (
+          <div className="h-8 animate-pulse rounded border border-hairline bg-paper-raised" />
+        ) : suggestedActions.length === 0 ? (
+          <p className="font-serif text-sm text-ink-faint">No suggestions right now.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {suggestedActions.map((action) => (
+              <button
+                key={action.id}
+                onClick={() => runSuggestedAction(action.goal)}
+                disabled={!action.goal}
+                className="card-paper px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:text-ink disabled:opacity-50"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {startedRunIds.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {startedRunIds.map((id) => (
+              <AgentRunCard key={id} runId={id} collapsedByDefault />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Recent agent activity */}
+      {recentRuns.length > 0 && (
+        <section className="mt-8 border-t border-hairline-strong/60 pt-6">
+          <SectionHeader title="Agent activity" />
+          <div className="space-y-2">
+            {recentRuns.map((r) => (
+              <AgentRunCard key={r.id} runId={r.id} collapsedByDefault linkToDetail />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

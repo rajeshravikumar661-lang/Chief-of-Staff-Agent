@@ -129,73 +129,121 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
- * Desk primitives — small, composable, used across pages.
+ * Desk primitives — a direct translation of "Chief of Staff Dashboard — 4a".
  * ------------------------------------------------------------------------- */
 
-/* A kraft section band with a mono label, like the "IN-TRAY — 3 LETTERS" strip. */
-.desk-band {
-  background: var(--color-band);
-  color: var(--color-band-ink);
-  border-radius: 4px;
-}
-
-/* Small-caps typewriter micro-label: "ROLODEX · NEXT UP", section headers. */
-.desk-label {
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-ink-faint);
-}
-
-/* Handwritten accent — greeting, sticky notes. */
+/* Handwritten accent — the greeting, sticky-note text, the wordmark. */
 .hand {
   font-family: var(--font-hand);
 }
 
-/* Paper grain on any surface that wants the desk tooth. */
+/* Typewriter micro-label: "ROLODEX · NEXT UP", "IN-TRAY — 3 LETTERS". */
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem; /* 10px */
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+/* Faint paper grain — the desk's tooth — on any surface. */
 .paper-texture {
-  background-image: radial-gradient(rgba(58, 46, 32, 0.05) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px);
   background-size: 5px 5px;
 }
 
 /*
- * The desk blotter: every app screen sits on this kraft surface, the way
- * the 4a mockup frames its dashboard. Cards inside read as paper on a desk.
+ * The desk blotter: every app screen sits on this kraft surface. Values are
+ * lifted straight from the mockup's outer <div>.
  */
 .desk-surface {
   background-color: var(--color-kraft);
-  background-image: radial-gradient(rgba(58, 46, 32, 0.06) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px);
   background-size: 5px 5px;
-  border: 1px solid color-mix(in srgb, var(--color-kraft) 72%, #000 8%);
-  border-radius: 12px;
-  box-shadow:
-    0 1px 3px rgba(58, 46, 32, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  padding: 1.25rem 1.15rem;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  padding: 22px 24px;
 }
 @media (min-width: 1024px) {
   .desk-surface {
-    padding: 2rem 2.15rem;
+    padding: 30px 34px;
   }
 }
 
-/*
- * Cards on the desk. Existing components use
- * `rounded-2xl border border-hairline bg-paper-raised` — re-cast that exact
- * combo as a cream letter/note: tiny radius, kraft hairline, real drop shadow.
- */
-.desk-surface .bg-paper-raised {
-  background-color: var(--color-paper-raised) !important;
+/* Sticky note — a pinned reminder, tilted, with a strip of tape. */
+.sticky-note {
+  position: relative;
+  align-self: flex-start;
+  padding: 14px;
+  background: #fff8dc;
+  box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.22);
+  transform: rotate(-2deg);
+  font-family: var(--font-hand);
+  font-weight: 700;
+  color: #5a2020;
 }
-.desk-surface .rounded-2xl,
-.desk-surface .rounded-xl {
-  border-radius: var(--radius-card) !important;
+.sticky-note--alt {
+  background: #e8f0d8;
+  transform: rotate(1.5deg);
+  color: #2e4022;
 }
-.desk-surface .border-hairline {
-  border-color: var(--color-hairline-strong) !important;
+.sticky-note__tape {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 30px;
+  height: 14px;
+  background: rgba(200, 60, 50, 0.6);
+  transform: translateX(-50%) rotate(-3deg);
 }
-.desk-surface .rounded-2xl.border,
-.desk-surface .rounded-xl.border {
-  box-shadow: var(--shadow-card);
+.sticky-note--alt .sticky-note__tape {
+  background: rgba(60, 90, 60, 0.55);
+  transform: translateX(-50%) rotate(2deg);
+}
+:root[data-theme="dark"] .sticky-note {
+  background: #4a4326;
+  color: #f4e4c4;
+}
+:root[data-theme="dark"] .sticky-note--alt {
+  background: #35402a;
+  color: #dcecc8;
+}
+
+/* A cream index card — "ROLODEX · NEXT UP", and the default card shape. */
+.card-paper {
+  background: var(--color-paper-raised);
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: 2px;
+  box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.16);
+}
+
+/* The coffee "IN-TRAY" band that groups letter cards / sections. */
+.in-tray {
+  background: var(--color-band);
+  border-radius: 4px;
+  padding: 14px 16px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+.in-tray > .mono-label {
+  color: var(--color-band-ink);
+}
+
+/* A letter in the tray. */
+.letter-card {
+  position: relative;
+  background: color-mix(in srgb, var(--color-paper-raised) 92%, var(--color-kraft) 8%);
+  border: 1px solid color-mix(in srgb, var(--color-hairline-strong) 80%, var(--color-kraft));
+  border-radius: 2px;
+  padding: 12px 14px;
+}
+
+/* Sealing-wax blob — marks the one item that can't wait. */
+.wax-seal {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 26px;
+  height: 30px;
+  background: var(--color-accent);
+  border-radius: 2px;
 }

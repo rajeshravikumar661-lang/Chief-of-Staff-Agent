@@ -21,7 +21,7 @@ export function KoraSummary({
 
   return (
     <section>
-      <p className="desk-label">{dateLabel}</p>
+      <p className="mono-label">{dateLabel}</p>
 
       <h1 className="mt-1 font-hand text-[2.75rem] font-bold leading-[1.1] text-ink sm:text-5xl">
         {loading ? <span className="inline-block h-9 w-64 animate-pulse rounded bg-paper-raised" /> : greeting}

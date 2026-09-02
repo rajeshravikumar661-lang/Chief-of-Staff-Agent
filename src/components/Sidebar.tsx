@@ -27,10 +27,10 @@ export function Sidebar({ userName }: { userName?: string | null }) {
   }
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[236px] shrink-0 flex-col border-r border-hairline bg-paper lg:flex">
+    <aside className="sticky top-0 hidden h-screen w-[236px] shrink-0 flex-col border-r border-hairline-strong bg-paper paper-texture lg:flex">
       <div className="px-4 py-5">
-        <p className="font-hand text-2xl font-bold text-ink">Kora</p>
-        {userName && <p className="mt-0.5 truncate text-xs text-ink-faint">{userName}</p>}
+        <p className="font-hand text-[1.9rem] font-bold leading-none text-ink">Kora</p>
+        {userName && <p className="mono-label mt-1 truncate normal-case tracking-normal">{userName}</p>}
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-2">
@@ -42,8 +42,10 @@ export function Sidebar({ userName }: { userName?: string | null }) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition",
-                active ? "bg-brand-soft font-medium text-brand-ink" : "text-ink-soft hover:bg-paper-raised hover:text-ink",
+                "flex items-center gap-2.5 rounded border-l-2 px-2.5 py-1.5 text-sm transition",
+                active
+                  ? "border-accent bg-brand-soft font-semibold text-brand-ink"
+                  : "border-transparent text-ink-soft hover:bg-paper-raised hover:text-ink",
               )}
             >
               <NavIcon name={item.icon} className="h-4 w-4 shrink-0 text-ink-faint" aria-hidden />

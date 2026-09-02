@@ -7,10 +7,8 @@ import { cn } from "@/lib/ui";
  */
 export function SectionHeader({ title, count, tone = "quiet" }: { title: string; count?: number; tone?: "quiet" | "warm" }) {
   return (
-    <div className="desk-band mb-3 flex items-center justify-between gap-2 px-3 py-1.5">
-      <h2 className="font-mono text-[0.7rem] uppercase tracking-[0.09em] text-[color:var(--color-band-ink)]">
-        {title}
-      </h2>
+    <div className="mb-3 flex items-center justify-between gap-2 rounded bg-[color:var(--color-band)] px-3 py-1.5">
+      <h2 className="mono-label !text-[color:var(--color-band-ink)]">{title}</h2>
       {typeof count === "number" && count > 0 && (
         <span
           className={cn(
