@@ -20,10 +20,12 @@ import makeWASocket, {
   jidNormalizedUser,
   fetchLatestBaileysVersion,
   type WASocket,
+  type WAMessage,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import { prisma } from "@/lib/db";
 import { useDbAuthState, hasDbAuthState, clearDbAuthState } from "@/integrations/whatsapp/dbAuthState";
+import { handleChat } from "@/agent/chat";
 
 const logger = pino({ level: process.env.WHATSAPP_LOG_LEVEL || "warn" });
 
@@ -47,6 +49,9 @@ interface UserWA {
   /** earliest time getState() may kick a background reconnect */
   nextRetryAt?: number;
   lastError?: string;
+  /** unix seconds when the current socket was created — inbound messages older
+   * than this are ignored so a reconnect doesn't replay + answer a backlog */
+  socketStartedAt?: number;
 }
 
 /**
@@ -56,6 +61,29 @@ interface UserWA {
  * another user's auth state nor address another user's entry.
  */
 const reg = new Map<string, UserWA>();
+
+/**
+ * IDs of messages WE sent into a self-chat. Kora's own replies come straight
+ * back through `messages.upsert` as `fromMe` on the same chat — without this the
+ * agent would answer itself forever. Bounded so a long-lived process can't leak.
+ */
+const sentIds = new Set<string>();
+/** Recent outbound text — a second-line echo guard when the id doesn't match. */
+const sentTexts = new Set<string>();
+/** userIds with an inbound turn currently in flight (one at a time per user). */
+const handling = new Set<string>();
+/** Sockets that already carry a messages.upsert listener (attach once each). */
+const inboundBound = new WeakSet<WASocket>();
+
+/** Record an outbound send so the inbound handler can recognise + skip it. */
+function rememberSent(id: string | null | undefined, text: string): void {
+  if (id) {
+    if (sentIds.size > 500) sentIds.clear();
+    sentIds.add(id);
+  }
+  if (sentTexts.size > 200) sentTexts.clear();
+  sentTexts.add(text);
+}
 
 // ---------------------------------------------------------------------------
 // Pure, dependency-free helpers (unit-tested in test/whatsapp.test.ts)
@@ -140,6 +168,87 @@ function scheduleReconnect(userId: string, e: UserWA): void {
   }, delay);
 }
 
+/**
+ * Wire the user's WhatsApp self-chat as a two-way "Ask Kora" surface: an inbound
+ * text becomes a `handleChat()` turn and the answer is sent straight back.
+ * Attached once per socket; every failure is swallowed so a bad message can
+ * never take the connection down.
+ */
+function attachInboundHandler(userId: string, e: UserWA, sock: WASocket): void {
+  if (inboundBound.has(sock)) return;
+  inboundBound.add(sock);
+
+  sock.ev.on("messages.upsert", (up) => {
+    // Only live pushes — "append" / history replay would answer stale messages.
+    if (up.type !== "notify") return;
+    void (async () => {
+      for (const m of up.messages) {
+        try {
+          await handleInboundMessage(userId, e, sock, m);
+        } catch (err) {
+          console.error(`[whatsapp] inbound handler error for ${userId}:`, err);
+        }
+      }
+    })();
+  });
+}
+
+async function handleInboundMessage(
+  userId: string,
+  e: UserWA,
+  sock: WASocket,
+  m: WAMessage,
+): Promise<void> {
+  const remoteJid = m.key?.remoteJid;
+  // selfJid is only set on connection "open"; nothing to compare against yet.
+  if (!remoteJid || !e.selfJid) return;
+  // Only the user's OWN self-chat is a Kora surface — ignore every other thread.
+  if (jidNormalizedUser(remoteJid) !== e.selfJid) return;
+
+  // Ignore anything from before this socket started so a reconnect doesn't
+  // replay + re-answer an old backlog. (messageTimestamp is seconds; Long has
+  // a valueOf so Number() handles both shapes.)
+  const ts = Number(m.messageTimestamp ?? 0);
+  if (e.socketStartedAt && ts && ts < e.socketStartedAt) return;
+
+  // Loop prevention: Kora's own replies arrive here too (fromMe, same chat).
+  const id = m.key?.id ?? undefined;
+  if (id && sentIds.has(id)) return;
+
+  const text = (
+    m.message?.conversation ??
+    m.message?.extendedTextMessage?.text ??
+    ""
+  ).trim();
+  if (!text) return;
+  if (sentTexts.has(text)) return; // defensive: exact echo of something we sent
+
+  // handleChat is slow relative to WhatsApp delivery — one turn per user at a
+  // time; drop (with a log) rather than queue so we can't pile up.
+  if (handling.has(userId)) {
+    console.warn(`[whatsapp] busy — dropping inbound for ${userId}: ${text.slice(0, 60)}`);
+    return;
+  }
+  handling.add(userId);
+  try {
+    try {
+      await sock.sendPresenceUpdate("composing", remoteJid);
+    } catch {
+      /* presence is cosmetic */
+    }
+    const res = await handleChat(userId, text);
+    await sendToUser(userId, res.reply);
+  } catch (err) {
+    console.error(`[whatsapp] handleChat failed for ${userId}:`, err);
+    await sendToUser(
+      userId,
+      "Sorry — I hit an error handling that. Try again in a moment.",
+    ).catch(() => {});
+  } finally {
+    handling.delete(userId);
+  }
+}
+
 /** Spin up (or reuse) a socket for this user. Resolves once it's open OR a QR is ready. */
 export async function connectUser(userId: string): Promise<UserWA> {
   const e = await getEntry(userId);
@@ -173,9 +282,12 @@ export async function connectUser(userId: string): Promise<UserWA> {
         printQRInTerminal: false,
       });
       e.sock = sock;
+      e.socketStartedAt = Math.floor(Date.now() / 1000);
       console.info(`[whatsapp] socket created for ${userId} (version=${version ? version.join(".") : "bundled"})`);
       if (e.status !== "qr") e.status = "connecting";
       sock.ev.on("creds.update", saveCreds);
+      // Inbound side of the channel — makes the self-chat a two-way "Ask Kora".
+      attachInboundHandler(userId, e, sock);
 
       await new Promise<void>((resolve) => {
         let settled = false;
@@ -343,7 +455,9 @@ export async function sendToUser(userId: string, text: string): Promise<void> {
   if (e.status !== "connected" || !e.sock || !e.selfJid) {
     throw new Error(`WhatsApp not connected (status: ${e.status})`);
   }
-  await e.sock.sendMessage(e.selfJid, { text });
+  const r = await e.sock.sendMessage(e.selfJid, { text });
+  // Remember what we sent so the inbound handler skips our own echo (fromMe).
+  rememberSent(r?.key?.id, text);
 }
 
 export async function isLinked(userId: string): Promise<boolean> {

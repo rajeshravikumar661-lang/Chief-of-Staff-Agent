@@ -13,6 +13,9 @@ import type {
   ChatResponse,
   CommitmentDTO,
   ConnectionDTO,
+  DocumentsResponse,
+  MessagesResponse,
+  PeopleListResponse,
   PersonDTO,
   SearchResponse,
   TaskDTO,
@@ -231,6 +234,21 @@ export const demoApi = {
   async search(q: string): Promise<SearchResponse> {
     await demoDelay();
     return demoStore.search(q);
+  },
+
+  async messages(_opts?: { filter?: string; q?: string; limit?: number }): Promise<MessagesResponse> {
+    await demoDelay();
+    return { messages: [] };
+  },
+
+  async documents(_opts?: { q?: string; limit?: number }): Promise<DocumentsResponse> {
+    await demoDelay();
+    return { documents: [] };
+  },
+
+  async peopleList(_opts?: { q?: string; limit?: number }): Promise<PeopleListResponse> {
+    await demoDelay();
+    return { people: [] };
   },
 
   async auditLogs(

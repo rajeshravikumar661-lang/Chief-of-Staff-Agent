@@ -1,6 +1,6 @@
 /**
  * API CONTRACT TYPES — the seam with Person B (frontend).
- * Mirrors PERSON_A_AGENT_BACKEND.md §10. Contract version: v0.1.
+ * Mirrors PERSON_A_AGENT_BACKEND.md §10. Contract version: v0.2.
  * If a shape changes here, bump the version and tell Person B.
  */
 
@@ -210,6 +210,40 @@ export interface SearchResponse {
   documents: { id: string; title: string | null; url: string | null; snippet: string | null }[];
   events: { id: string; title: string | null; startTime: string }[];
   people: { id: string; name: string; email: string | null }[];
+}
+
+// --- Default list views (Inbox / Documents / People) ----------------------
+
+export interface MessagesResponse {
+  messages: {
+    id: string;
+    subject: string | null;
+    snippet: string | null;
+    sender: string | null;
+    provider: string;
+    unread: boolean;
+    timestamp: string; // ISO UTC
+  }[];
+}
+export interface DocumentsResponse {
+  documents: {
+    id: string;
+    title: string | null;
+    url: string | null;
+    provider: string;
+    snippet: string | null;
+    updatedAt: string; // ISO UTC
+  }[];
+}
+export interface PeopleListResponse {
+  people: {
+    id: string;
+    name: string;
+    email: string | null;
+    org: string | null;
+    importance: string;
+    lastContactAt: string | null; // ISO UTC or null
+  }[];
 }
 
 // --- Flagship "handle this" workflow ---------------------------------------

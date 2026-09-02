@@ -19,6 +19,9 @@ import type {
   ChatResponse,
   CommitmentDTO,
   ConnectionDTO,
+  DocumentsResponse,
+  MessagesResponse,
+  PeopleListResponse,
   PersonDTO,
   SearchResponse,
   TaskDTO,
@@ -105,6 +108,31 @@ const realApi = {
   briefingGenerate: () => request<BriefingResponse>("/api/briefing/generate", { method: "POST" }),
 
   search: (q: string) => request<SearchResponse>(`/api/search?q=${encodeURIComponent(q)}`),
+
+  messages: (opts?: { filter?: string; q?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (opts?.filter) qs.set("filter", opts.filter);
+    if (opts?.q) qs.set("q", opts.q);
+    if (opts?.limit != null) qs.set("limit", String(opts.limit));
+    const q = qs.toString();
+    return request<MessagesResponse>(`/api/messages${q ? `?${q}` : ""}`);
+  },
+
+  documents: (opts?: { q?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (opts?.q) qs.set("q", opts.q);
+    if (opts?.limit != null) qs.set("limit", String(opts.limit));
+    const q = qs.toString();
+    return request<DocumentsResponse>(`/api/documents${q ? `?${q}` : ""}`);
+  },
+
+  peopleList: (opts?: { q?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (opts?.q) qs.set("q", opts.q);
+    if (opts?.limit != null) qs.set("limit", String(opts.limit));
+    const q = qs.toString();
+    return request<PeopleListResponse>(`/api/people${q ? `?${q}` : ""}`);
+  },
 
   auditLogs: (runId?: string) =>
     request<
