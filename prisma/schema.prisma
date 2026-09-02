@@ -336,3 +336,25 @@ model Briefing {
 
   @@index([userId, generatedAt])
 }
+
+// ----------------------------------------------------------------------------
+// WhatsApp (Baileys) auth state — DB-backed so linked sessions survive
+// redeploys/restarts on any host, not just ones with a persistent disk.
+// Mirrors Baileys' own useMultiFileAuthState shape: one row for `creds`,
+// one row per signal key (`${type}-${id}`). See src/integrations/whatsapp/dbAuthState.ts.
+// ----------------------------------------------------------------------------
+
+model WhatsAppAuthCreds {
+  userId    String   @id
+  data      String   @db.Text // JSON via Baileys' BufferJSON
+  updatedAt DateTime @updatedAt
+}
+
+model WhatsAppAuthKey {
+  userId    String
+  keyId     String // `${type}-${id}`, e.g. "app-state-sync-key-ABC123"
+  data      String   @db.Text // JSON via Baileys' BufferJSON
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, keyId])
+}

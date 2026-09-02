@@ -12,7 +12,7 @@ import { isWhatsAppEnabled, isLinked, sendToUser } from "@/integrations/whatsapp
 
 export async function sendWhatsAppDigest(userId: string): Promise<{ sent: boolean; reason?: string }> {
   if (!isWhatsAppEnabled()) return { sent: false, reason: "WHATSAPP_ENABLED != true" };
-  if (!isLinked(userId)) return { sent: false, reason: "WhatsApp not linked" };
+  if (!(await isLinked(userId))) return { sent: false, reason: "WhatsApp not linked" };
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -53,7 +53,7 @@ export async function sendWhatsAppDigestAllUsers(): Promise<void> {
   }
   const users = await prisma.user.findMany({ select: { id: true } });
   for (const { id } of users) {
-    if (!isLinked(id)) continue;
+    if (!(await isLinked(id))) continue;
     try {
       const r = await sendWhatsAppDigest(id);
       console.info(`[jobs/whatsappDigest] user ${id}: ${r.sent ? "sent" : `skipped (${r.reason})`}`);

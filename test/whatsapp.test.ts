@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
-import path from "node:path";
 import {
   SAFE_USER_ID,
   assertSafeUserId,
   normalizeNumber,
   toJid,
   jidToDigits,
-  authDir,
 } from "@/integrations/whatsapp/client";
 
 /**
- * Unit tests for the pure helpers + the multi-tenant isolation guard.
- * No live sockets — Baileys is imported transitively but never dialed.
+ * Unit tests for the pure helpers + the multi-tenant isolation guard
+ * (assertSafeUserId — every DB-backed auth-state row is keyed by this
+ * validated userId; see dbAuthState.ts). No live sockets — Baileys is
+ * imported transitively but never dialed.
  */
 
 describe("assertSafeUserId / SAFE_USER_ID", () => {
@@ -50,30 +50,6 @@ describe("assertSafeUserId / SAFE_USER_ID", () => {
     // @ts-expect-error deliberate wrong type
     expect(() => assertSafeUserId(123)).toThrow();
     expect(() => assertSafeUserId("a".repeat(129))).toThrow();
-  });
-});
-
-describe("authDir (isolation guard)", () => {
-  it("puts each user in their own subdirectory", () => {
-    const a = authDir("userA");
-    const b = authDir("userB");
-    expect(a).not.toBe(b);
-    expect(path.basename(a)).toBe("userA");
-    expect(path.basename(b)).toBe("userB");
-    // sibling dirs under a shared root
-    expect(path.dirname(a)).toBe(path.dirname(b));
-  });
-
-  it("never escapes the auth root", () => {
-    const root = path.dirname(authDir("anchor"));
-    const resolved = path.resolve(authDir("userA"));
-    expect(resolved.startsWith(path.resolve(root) + path.sep)).toBe(true);
-  });
-
-  it("throws on any traversal attempt instead of building an escaping path", () => {
-    for (const bad of ["../victim", "..", "a/../../b", "/etc", "./x"]) {
-      expect(() => authDir(bad)).toThrow(/invalid userId/);
-    }
   });
 });
 

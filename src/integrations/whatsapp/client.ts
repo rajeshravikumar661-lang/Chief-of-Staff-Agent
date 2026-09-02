@@ -3,28 +3,28 @@
  *
  * Each user links their OWN WhatsApp from the dashboard (scan a QR → "Linked
  * devices"). The system then messages them on their own number (self-chat).
- * Auth state is per-user under WHATSAPP_AUTH_DIR/<userId>/.
+ * Auth state is per-user, stored in Postgres (see dbAuthState.ts) — not the
+ * filesystem — so a linked session survives redeploys and restarts on any
+ * host, including ones with no persistent disk (Vercel's /tmp, Render's free
+ * tier). Same database the rest of the app already depends on.
  *
- * Sockets are long-lived and in-process — this works on a persistent Node server
- * (local `npm run dev`, a VPS, Railway/Render) but NOT on Vercel serverless:
- * a function is frozen after it responds and `/tmp` is ephemeral, so a QR shows
- * but pairing never completes. Host the app (or at least these routes + the
- * worker) on a persistent process for WhatsApp to work. See DEPLOY.md §4.
+ * Sockets are still long-lived and in-process — this works on a persistent
+ * Node server (local `npm run dev`, a VPS, Render, Railway) but NOT on
+ * Vercel serverless: a function is frozen right after it responds, so a QR
+ * shows but pairing (which needs the socket to stay open while the phone
+ * confirms) never completes. Host the app (or at least these routes + the
+ * worker) on a persistent process for WhatsApp to work. See DEPLOY.md.
  */
-import { rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import path from "node:path";
 import makeWASocket, {
   DisconnectReason,
   jidNormalizedUser,
-  useMultiFileAuthState,
   fetchLatestBaileysVersion,
   type WASocket,
 } from "@whiskeysockets/baileys";
 import pino from "pino";
 import { prisma } from "@/lib/db";
+import { useDbAuthState, hasDbAuthState, clearDbAuthState } from "@/integrations/whatsapp/dbAuthState";
 
-const AUTH_ROOT = process.env.WHATSAPP_AUTH_DIR || ".wa-auth";
 const logger = pino({ level: process.env.WHATSAPP_LOG_LEVEL || "silent" });
 
 /** Time we wait for a socket to reach "open" or produce a QR before returning. */
@@ -53,7 +53,7 @@ interface UserWA {
  * Module-level registry, keyed strictly by userId. Every value is a distinct
  * object; nothing here is ever shared between users. All public entry points
  * validate the userId first (see assertSafeUserId) so one user can neither read
- * another user's auth dir nor address another user's entry.
+ * another user's auth state nor address another user's entry.
  */
 const reg = new Map<string, UserWA>();
 
@@ -61,14 +61,13 @@ const reg = new Map<string, UserWA>();
 // Pure, dependency-free helpers (unit-tested in test/whatsapp.test.ts)
 // ---------------------------------------------------------------------------
 
-/** A userId is safe to use as a single path segment. */
+/** A userId is safe to use as a single path segment / DB key. */
 export const SAFE_USER_ID = /^[A-Za-z0-9_-]+$/;
 
 /**
- * Guard a userId before it is ever turned into a filesystem path. Rejects
- * anything that is not a flat `[A-Za-z0-9_-]+` token — in particular `.`, `..`,
- * `/`, `\`, null bytes and whitespace — so path traversal into another user's
- * (or an arbitrary) directory is impossible. Returns the id for chaining.
+ * Guard a userId before it is ever used to key auth state. Rejects anything
+ * that is not a flat `[A-Za-z0-9_-]+` token — in particular `.`, `..`, `/`,
+ * `\`, null bytes and whitespace. Returns the id for chaining.
  */
 export function assertSafeUserId(userId: string): string {
   if (typeof userId !== "string" || userId.length === 0 || userId.length > 128) {
@@ -111,26 +110,18 @@ export function jidToDigits(jid: string | null | undefined): string | null {
   return digits || null;
 }
 
-/** Per-user auth directory. Validates the userId first. */
-export function authDir(userId: string): string {
-  return path.join(AUTH_ROOT, assertSafeUserId(userId));
-}
-
 // ---------------------------------------------------------------------------
 
 export function isWhatsAppEnabled(): boolean {
   return process.env.WHATSAPP_ENABLED === "true";
 }
 
-function credsExist(userId: string): boolean {
-  return existsSync(path.join(authDir(userId), "creds.json"));
-}
-
-function entry(userId: string): UserWA {
+async function getEntry(userId: string): Promise<UserWA> {
   assertSafeUserId(userId);
   let e = reg.get(userId);
   if (!e) {
-    e = { status: credsExist(userId) ? "connecting" : "unpaired" };
+    const linked = await hasDbAuthState(userId);
+    e = { status: linked ? "connecting" : "unpaired" };
     reg.set(userId, e);
   }
   return e;
@@ -151,7 +142,7 @@ function scheduleReconnect(userId: string, e: UserWA): void {
 
 /** Spin up (or reuse) a socket for this user. Resolves once it's open OR a QR is ready. */
 export async function connectUser(userId: string): Promise<UserWA> {
-  const e = entry(userId);
+  const e = await getEntry(userId);
   e.unlinked = false;
 
   // A live socket already exists (connected, or mid-pairing with a QR shown) —
@@ -166,7 +157,7 @@ export async function connectUser(userId: string): Promise<UserWA> {
   e.starting = (async () => {
     let sock: WASocket | undefined;
     try {
-      const { state, saveCreds } = await useMultiFileAuthState(authDir(userId));
+      const { state, saveCreds } = await useDbAuthState(userId);
 
       let version: [number, number, number] | undefined;
       try {
@@ -228,15 +219,18 @@ export async function connectUser(userId: string): Promise<UserWA> {
               e.status = "unpaired";
               e.qr = undefined;
               e.selfJid = undefined;
-              void rm(authDir(userId), { recursive: true, force: true }).catch(() => {});
+              void clearDbAuthState(userId).catch(() => {});
+              done();
             } else {
               // 515 restart-required (normal right after linking), network blips,
               // Render spin-down resume, etc. — reconnect with backoff so a linked
               // user is never permanently stuck "connecting".
-              e.status = credsExist(userId) ? "connecting" : "unpaired";
-              if (e.status === "connecting") scheduleReconnect(userId, e);
+              void hasDbAuthState(userId).then((linked) => {
+                e.status = linked ? "connecting" : "unpaired";
+                if (e.status === "connecting") scheduleReconnect(userId, e);
+                done();
+              });
             }
-            done();
           }
         });
       });
@@ -248,7 +242,7 @@ export async function connectUser(userId: string): Promise<UserWA> {
       }
       e.sock = undefined;
       e.lastError = error instanceof Error ? error.message : String(error);
-      e.status = credsExist(userId) ? "connecting" : "unpaired";
+      e.status = (await hasDbAuthState(userId)) ? "connecting" : "unpaired";
       throw error;
     }
   })();
@@ -261,8 +255,8 @@ export async function connectUser(userId: string): Promise<UserWA> {
   return e;
 }
 
-export function getState(userId: string): { status: WAStatus; qr?: string; number?: string } {
-  const e = entry(userId);
+export async function getState(userId: string): Promise<{ status: WAStatus; qr?: string; number?: string }> {
+  const e = await getEntry(userId);
 
   // Self-heal: a linked user whose in-memory socket died (process restart,
   // Render free-tier spin-down, etc.) shows "connecting" until someone
@@ -320,7 +314,7 @@ export async function unlink(userId: string): Promise<void> {
     }
   }
   reg.delete(userId);
-  await rm(authDir(userId), { recursive: true, force: true }).catch(() => {});
+  await clearDbAuthState(userId);
   await prisma.user.update({ where: { id: userId }, data: { whatsappJid: null } }).catch(() => {});
 }
 
@@ -331,9 +325,9 @@ export async function sendToUser(userId: string, text: string): Promise<void> {
     console.warn("[whatsapp] WHATSAPP_ENABLED != true — skipping send");
     return;
   }
-  let e = entry(userId);
+  let e = await getEntry(userId);
   if (!e.sock || e.status !== "connected") {
-    if (!credsExist(userId)) {
+    if (!(await hasDbAuthState(userId))) {
       throw new Error("WhatsApp not linked for this user");
     }
     e = await connectUser(userId);
@@ -344,9 +338,9 @@ export async function sendToUser(userId: string, text: string): Promise<void> {
   await e.sock.sendMessage(e.selfJid, { text });
 }
 
-export function isLinked(userId: string): boolean {
+export async function isLinked(userId: string): Promise<boolean> {
   try {
-    return credsExist(userId);
+    return await hasDbAuthState(userId);
   } catch {
     return false;
   }

@@ -10,12 +10,12 @@ export async function GET() {
   if (isResponse(u)) return u;
 
   try {
-    const s = getState(u.userId);
+    const [s, linked] = await Promise.all([getState(u.userId), isLinked(u.userId)]);
     const qrDataUrl = s.qr ? await QRCode.toDataURL(s.qr, { margin: 1, width: 260 }) : null;
 
     return ok({
       enabled: isWhatsAppEnabled(),
-      linked: isLinked(u.userId),
+      linked,
       status: s.status, // unpaired | qr | connecting | connected
       number: s.number ?? null,
       qrDataUrl,

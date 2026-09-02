@@ -11,11 +11,54 @@
 | Google Cloud project + OAuth consent screen | **Live**: `Chief of Staff Agent` (`animated-surfer-507314-i8`), External/**Production** (published), 2 known users added as Testing-era allowlist (now irrelevant — anyone can attempt sign-in, capped at 100 lifetime, with Google's "unverified app" click-through) |
 | Google APIs enabled | Gmail, Calendar, Drive, Docs — all four enabled on the project |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | **Set** on Vercel — verified end-to-end, no `invalid_client` |
-| LLM key (`GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) | **Not set** — agent runs will fail until added |
+| LLM key (`GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) | **Set** on Vercel only — not yet copied to Render (see below) |
 | Background worker (§4/§Render Blueprint) | **Not deployed** — briefing/sync jobs no-op until you pick an option |
+| **Render web service (`cos-agent-web`)** | **Live**: https://cos-agent-web-wul5.onrender.com — deployed 2026-09-02 specifically so WhatsApp linking works (see below); free plan, standalone `New → Web Service`, **not** the `render.yaml` Blueprint |
 
 `curl https://chief-of-staff-agent-sigma.vercel.app/api/health` → `{"status":"ok"}`.
 `/today` correctly 307s to `/signin` unauthenticated — auth is enforced, not bypassed.
+
+### Render web service — why it exists, and its gaps
+
+WhatsApp pairing (`/api/whatsapp/pair` + the QR flow) needs a socket that survives
+between requests. Vercel serverless functions freeze right after responding, so a QR
+would render but the pairing handshake could never complete — this is why WhatsApp
+"couldn't connect" before. `cos-agent-web` on Render's free **web** service tier is a
+persistent Node process (unlike Vercel), so the exact same Next.js app works there for
+WhatsApp without needing the paid BullMQ `worker` service from `render.yaml` at all —
+pairing lives inside the main app's API routes, not the worker.
+
+Set up so far, reusing the same secrets as Vercel where they were available locally
+(`DATABASE_URL`, `DIRECT_URL` — session-pooler variant, `AUTH_SECRET`,
+`TOKEN_ENCRYPTION_KEY`, `GOOGLE_CLIENT_ID`, `WHATSAPP_ENABLED=true`, `NEXTAUTH_URL`
+pointed at the Render URL). `GOOGLE_CLIENT_SECRET` could not be read back from Vercel
+(Google no longer allows viewing an existing client secret, and Vercel had it marked
+Sensitive) — worked around by adding a **second** client secret to the same OAuth
+client in Google Cloud Console (Google supports two live secrets simultaneously for
+exactly this kind of rotation) and using that on Render; the original secret Vercel
+uses is untouched. Also added
+`https://cos-agent-web-wul5.onrender.com/api/auth/callback/google` as a new authorized
+redirect URI on the same OAuth client — propagation can take Google 5 minutes to a few
+hours, so a fresh `redirect_uri_mismatch` right after adding it is expected, not a bug.
+
+**Known gaps on the Render service, not yet addressed:**
+- `GEMINI_API_KEY` / `LLM_PROVIDER` / `GEMINI_STRONG_MODEL` / `GEMINI_CHEAP_MODEL` are
+  **not** set there yet (same "Sensitive on Vercel" blocker) — agent runs will fail on
+  this host until added manually via the Render dashboard.
+- Two web services now point at the same Supabase database (Vercel prod + this Render
+  service). Both are meant to be the same logical app, just on different hosts while
+  this is being sorted out — not a deliberate staging/prod split.
+
+**WhatsApp auth persistence is DB-backed, not disk-backed (2026-09-02).** Free-tier
+Render web services have no persistent disk, so the original filesystem-based
+`useMultiFileAuthState` would lose a linked session on every redeploy or 15-minute
+idle spin-down. Instead of paying for a disk, `src/integrations/whatsapp/dbAuthState.ts`
+reimplements Baileys' own file-based auth-state pattern against Postgres
+(`WhatsAppAuthCreds` / `WhatsAppAuthKey` models) — the exact same shape Baileys writes
+to disk, just as rows instead of files. This means a linked WhatsApp session now
+survives redeploys, restarts, and spin-downs on **any** host, free tier included, with
+no extra infrastructure. `getState()` and `isLinked()` are now `async` (they read the
+DB) — update any new caller accordingly.
 
 **Fixed 2026-09-02: builds were failing.** `npm run build` now runs `prisma migrate
 deploy` automatically (good — keeps prod schema current on every deploy), but it used

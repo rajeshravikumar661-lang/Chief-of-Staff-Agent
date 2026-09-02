@@ -26,17 +26,18 @@ if (!user) {
 console.log(`Pairing WhatsApp for ${user.email} …`);
 let shown = false;
 const timer = setInterval(() => {
-  const s = getState(user.id);
-  if (s.status === "qr" && s.qr && !shown) {
-    shown = true;
-    console.log("\nScan from WhatsApp → Settings → Linked devices → Link a device:\n");
-    qrcodeTerminal.generate(s.qr, { small: true });
-  }
-  if (s.status === "connected") {
-    console.log(`\n✅ linked to +${s.number}`);
-    clearInterval(timer);
-    process.exit(0);
-  }
+  void getState(user.id).then((s) => {
+    if (s.status === "qr" && s.qr && !shown) {
+      shown = true;
+      console.log("\nScan from WhatsApp → Settings → Linked devices → Link a device:\n");
+      qrcodeTerminal.generate(s.qr, { small: true });
+    }
+    if (s.status === "connected") {
+      console.log(`\n✅ linked to +${s.number}`);
+      clearInterval(timer);
+      process.exit(0);
+    }
+  });
 }, 1000);
 
 await connectUser(user.id);
