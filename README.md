@@ -1,5 +1,7 @@
 # Kora
 
+**Live app: https://kora-app.onrender.com** — see [`DEPLOY.md`](DEPLOY.md) for full deployment status.
+
 Kora is an AI "chief of staff" that connects to your work tools, understands what's happening
 across them, identifies priorities, and takes useful actions **with your approval**.
 
@@ -81,9 +83,10 @@ cp .env.example .env      # fill GOOGLE_CLIENT_* + GEMINI_API_KEY
 docker compose up --build # db + redis + web (:3000) + worker; runs migrate deploy on boot
 ```
 
-## Deploy (Vercel + Supabase)
-See [`DEPLOY.md`](DEPLOY.md) — Supabase Postgres setup, required Vercel env vars, and
-background-worker hosting options (Vercel doesn't run the BullMQ worker process).
+## Deploy
+Canonical deployment is `kora-app` on Render (persistent Node process, needed for
+WhatsApp) + Supabase Postgres — see [`DEPLOY.md`](DEPLOY.md) for full status, env vars,
+and background-worker hosting options.
 
 ## Verify
 ```bash
