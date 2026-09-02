@@ -1,5 +1,5 @@
 # Person A — Agent & Backend
-### Chief of Staff Agent — Backend, Orchestration, Data, Security
+### Kora — Backend, Orchestration, Data, Security
 
 > Companion file: `PERSON_B_FRONTEND_PRODUCT.md`. Both files implement the same product spec.
 > The **API Contract** section below (§10) is the seam between you two — it is duplicated

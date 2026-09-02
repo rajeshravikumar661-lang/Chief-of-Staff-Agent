@@ -1,4 +1,4 @@
-# CLAUDE.md — engineering rules for Chief of Staff Agent (backend / Person A)
+# CLAUDE.md — engineering rules for Kora (backend / Person A)
 
 ## What this repo is
 Backend + agent orchestration for an AI "Chief of Staff". Product spec:
