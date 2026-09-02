@@ -232,8 +232,9 @@ export async function searchMessages(
 export async function listRecent(
   userId: string,
   q: string,
-  max = 50,
+  max = 30,
 ): Promise<RawGmailMessage[]> {
+  max = max ?? 30;
   return withGmail(userId, async (gmail) => {
     const list = await gmail.users.messages.list({
       userId: "me",

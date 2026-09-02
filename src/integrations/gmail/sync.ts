@@ -11,7 +11,9 @@ import { scopedDb } from "@/lib/db";
 import { listRecent, type RawGmailMessage } from "./client";
 
 const LOOKBACK_QUERY = "newer_than:30d";
-const MAX_MESSAGES = 50;
+// Capped low on purpose: a slow host (Render free tier) must finish a full
+// Gmail sync inside the per-connector timeout window.
+const MAX_MESSAGES = 30;
 
 function toTimestamp(raw: RawGmailMessage): Date {
   if (raw.internalDate) {
@@ -38,7 +40,7 @@ export async function syncGmail(userId: string): Promise<number> {
   const db = scopedDb(userId);
 
   // Connector errors (ConnectionMissingError et al.) propagate to the caller.
-  const raws = await listRecent(userId, LOOKBACK_QUERY, MAX_MESSAGES);
+  const raws = await listRecent(userId, LOOKBACK_QUERY, MAX_MESSAGES ?? 30);
 
   let synced = 0;
   for (const raw of raws) {

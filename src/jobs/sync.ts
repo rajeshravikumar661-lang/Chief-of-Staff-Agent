@@ -16,6 +16,7 @@ import { syncNotion } from "@/integrations/notion";
 import { syncLinear } from "@/integrations/linear";
 import { syncGworkspace } from "@/integrations/gworkspace";
 import { prisma } from "@/lib/db";
+import { env } from "@/lib/env";
 import { syncPeople } from "@/jobs/relationships";
 import { sweepOverdueCommitments } from "@/jobs/commitments";
 
@@ -67,7 +68,7 @@ function withTimeout<T>(fn: () => Promise<T>, ms: number, label: string): Promis
 
 /** Sync every connected source for one user, then refresh derived data. Never throws. */
 export async function syncAll(userId: string): Promise<SyncCounts> {
-  const T = 25_000;
+  const T = env.syncTimeoutMs();
   const [gmail, calendar, drive, slack, github, notion, linear, gworkspace] =
     await Promise.allSettled([
       withTimeout(() => syncGmail(userId), T, "gmail"),

@@ -83,6 +83,8 @@ export const env = {
   agentMaxWallclockMs: () => num("AGENT_MAX_WALLCLOCK_MS", 90_000),
   agentMaxCostUsd: () => num("AGENT_MAX_COST_USD", 1.0),
 
+  syncTimeoutMs: () => num("SYNC_TIMEOUT_MS", 60_000),
+
   slackClientId: () => opt("SLACK_CLIENT_ID"),
   slackClientSecret: () => opt("SLACK_CLIENT_SECRET"),
   githubClientId: () => opt("GITHUB_CLIENT_ID"),

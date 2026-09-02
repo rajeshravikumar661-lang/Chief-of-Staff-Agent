@@ -25,10 +25,10 @@ import pino from "pino";
 import { prisma } from "@/lib/db";
 import { useDbAuthState, hasDbAuthState, clearDbAuthState } from "@/integrations/whatsapp/dbAuthState";
 
-const logger = pino({ level: process.env.WHATSAPP_LOG_LEVEL || "silent" });
+const logger = pino({ level: process.env.WHATSAPP_LOG_LEVEL || "warn" });
 
 /** Time we wait for a socket to reach "open" or produce a QR before returning. */
-const CONNECT_WAIT_MS = 20_000;
+const CONNECT_WAIT_MS = 45_000;
 /** Minimum spacing between background self-heal reconnect attempts. */
 const SELF_HEAL_COOLDOWN_MS = 5_000;
 
@@ -173,6 +173,7 @@ export async function connectUser(userId: string): Promise<UserWA> {
         printQRInTerminal: false,
       });
       e.sock = sock;
+      console.info(`[whatsapp] socket created for ${userId} (version=${version ? version.join(".") : "bundled"})`);
       if (e.status !== "qr") e.status = "connecting";
       sock.ev.on("creds.update", saveCreds);
 
@@ -191,11 +192,13 @@ export async function connectUser(userId: string): Promise<UserWA> {
           if (e.unlinked) return;
           const { connection, lastDisconnect, qr } = u;
           if (qr) {
+            console.info(`[whatsapp] qr received for ${userId}`);
             e.qr = qr;
             e.status = "qr";
             done(); // caller can now show the QR
           }
           if (connection === "open") {
+            console.info(`[whatsapp] connection open for ${userId}`);
             e.qr = undefined;
             e.status = "connected";
             e.retries = 0;
@@ -213,6 +216,10 @@ export async function connectUser(userId: string): Promise<UserWA> {
             const code = (
               lastDisconnect?.error as { output?: { statusCode?: number } } | undefined
             )?.output?.statusCode;
+            console.error(
+              `[whatsapp] connection close for ${userId} (code=${code ?? "?"}):`,
+              lastDisconnect?.error,
+            );
             e.sock = undefined;
             e.starting = undefined;
             if (code === DisconnectReason.loggedOut) {
@@ -242,6 +249,7 @@ export async function connectUser(userId: string): Promise<UserWA> {
       }
       e.sock = undefined;
       e.lastError = error instanceof Error ? error.message : String(error);
+      console.error(`[whatsapp] setup failed for ${userId}:`, error);
       e.status = (await hasDbAuthState(userId)) ? "connecting" : "unpaired";
       throw error;
     }
