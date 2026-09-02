@@ -6,22 +6,37 @@
 |---|---|
 | Vercel project | **Live**: `rajeshravi/chief-of-staff-agent` → https://chief-of-staff-agent-sigma.vercel.app |
 | Supabase project | **Live**: `chief-of-staff-agent` (org `rajeshravikumar661-lang's Org`, region ap-northeast-1 / Tokyo, free tier) |
-| Database schema | **Migrated** — `prisma migrate deploy` applied against Supabase |
+| Database schema | **Migrated** — all 3 migrations applied, including `user_timezone` |
 | `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `TOKEN_ENCRYPTION_KEY`, `NEXTAUTH_URL` | **Set** on Vercel (Production) |
-| Google Cloud project + OAuth consent screen | **Live**: `Chief of Staff Agent` (`animated-surfer-507314-i8`), External/Testing, 2 test users added |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | **Set** on Vercel — verified end-to-end: "Continue with Google" correctly reaches Google's real account chooser for `chief-of-staff-agent-sigma.vercel.app` with no `invalid_client` error |
+| Google Cloud project + OAuth consent screen | **Live**: `Chief of Staff Agent` (`animated-surfer-507314-i8`), External/**Production** (published), 2 known users added as Testing-era allowlist (now irrelevant — anyone can attempt sign-in, capped at 100 lifetime, with Google's "unverified app" click-through) |
+| Google APIs enabled | Gmail, Calendar, Drive, Docs — all four enabled on the project |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | **Set** on Vercel — verified end-to-end, no `invalid_client` |
 | LLM key (`GEMINI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) | **Not set** — agent runs will fail until added |
-| Background worker (§4) | **Not deployed** — briefing/sync jobs no-op until you pick an option |
+| Background worker (§4/§Render Blueprint) | **Not deployed** — briefing/sync jobs no-op until you pick an option |
 
 `curl https://chief-of-staff-agent-sigma.vercel.app/api/health` → `{"status":"ok"}`.
 `/today` correctly 307s to `/signin` unauthenticated — auth is enforced, not bypassed.
 
-**Google OAuth is in Testing mode** (no Google verification review needed, since the app
-only requests read-mostly scopes + compose, not send). Only the 2 emails added as test
-users can actually complete sign-in: `rajesh.ravi@usefaff.com` and
-`rajeshravikumar661@gmail.com`. To add your teammate: Google Cloud Console → this
-project → APIs & Services → Google Auth Platform → Audience → Test users → Add users.
-100-user cap before verification would be required; irrelevant at this stage.
+**Fixed 2026-09-02: builds were failing.** `npm run build` now runs `prisma migrate
+deploy` automatically (good — keeps prod schema current on every deploy), but it used
+`DIRECT_URL` pointed at Supabase's true direct-connection host
+(`db.<ref>.supabase.co:5432`), which is **IPv6-only** — unreachable from Vercel's build
+machines (no IPv6 egress), so every build that needed to run a migration failed with
+`P1001: Can't reach database server`. Fixed by pointing `DIRECT_URL` at Supabase's
+**Session pooler** instead (same IPv4 host as the pooled `DATABASE_URL`, port `5432`
+instead of `6543`) — Supabase's own dashboard flags this exact host as "the alternative
+to direct connection when connecting via an IPv4 network." Verified: `prisma migrate
+status` succeeds against it, and the next Vercel deploy built clean. If you ever want
+the true direct connection back (e.g. for a bulk operation), Supabase sells an IPv4
+add-on for it — not needed for normal migrations.
+
+**Google OAuth is published (In production)**, not Testing. Anyone with a Google
+account can attempt sign-in — up to a lifetime cap of 100 total grants — but sees
+Google's "unverified app" interstitial (Advanced → Go to app) until real Google
+verification completes (privacy policy done; still needs Search Console domain
+verification + a CASA security review for the Gmail/Drive scopes). To add more known
+users to skip nothing (the interstitial still shows) but keep a record: Google Cloud
+Console → this project → APIs & Services → Google Auth Platform → Audience → Test users.
 
 The rest of this doc is the reference for the two pieces above and for adding a worker.
 Nothing here changes local dev: `npm run dev`, `npm run quickstart`, demo mode, and
@@ -47,22 +62,23 @@ schema migrated. Steps below are the reference for what was done / what to do if
 ever need a second environment (e.g. staging).
 
 1. Create a project at supabase.com (any region close to where Vercel will run).
-2. Project Settings → Database → Connection string. Supabase gives you two:
-   - **Connection pooling** (port `6543`, `?pgbouncer=true`) — use this for `DATABASE_URL`,
+2. Project Settings → Database → Connection string. Supabase gives you three:
+   - **Transaction pooler** (port `6543`, `?pgbouncer=true`) — use this for `DATABASE_URL`,
      since Vercel serverless functions open a new DB connection per invocation and a
      direct connection will exhaust Postgres's connection limit under load.
-   - **Direct connection** (port `5432`) — only needed on your own machine when you run
-     `npx prisma migrate deploy` (migrations don't work well through the pooler).
-3. This repo's `prisma/schema.prisma` currently has a single `url = env("DATABASE_URL")`
-   and no `directUrl`. For a low-traffic launch you can point `DATABASE_URL` straight at
-   the direct connection and skip the pooler entirely — simplest, revisit if you hit
-   connection-limit errors. If you want the pooled setup instead, that's a small
-   `prisma/schema.prisma` change (add `directUrl = env("DIRECT_URL")`) — flag it and I'll
-   make it, since that file is backend-owned and out of scope for this prep pass.
+   - **Direct connection** (port `5432`, `db.<ref>.supabase.co`) — **IPv6-only**. Don't
+     use this for `DIRECT_URL` on Vercel: build machines have no IPv6 egress, so any
+     build that runs a migration fails with `P1001`. Fine for your own machine if it has
+     IPv6, but that's not guaranteed either — don't rely on it.
+   - **Session pooler** (port `5432`, same pooler host as above) — use this for
+     `DIRECT_URL`. It's IPv4, and unlike the transaction pooler it supports the
+     prepared-statement/DDL behavior `prisma migrate` needs.
+3. `prisma/schema.prisma` has `directUrl = env("DIRECT_URL")` alongside `url =
+   env("DATABASE_URL")` — already wired for this pooled+session split.
 4. Run migrations against Supabase from your machine (one-time, and again after any
-   schema change):
+   schema change — though `npm run build` now does this automatically on every deploy):
    ```bash
-   DATABASE_URL="<supabase direct connection string>" npx prisma migrate deploy
+   DIRECT_URL="<session pooler string, port 5432>" DATABASE_URL="<transaction pooler string, port 6543>" npx prisma migrate deploy
    ```
 
 ## 3. Vercel
