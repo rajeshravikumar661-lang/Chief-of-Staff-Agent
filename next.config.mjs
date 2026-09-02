@@ -6,7 +6,20 @@ const nextConfig = {
   // dynamic catch-all API routes — broke NextAuth's [...nextauth] route with
   // "UnknownAction: Unsupported action" on every sign-in attempt.
   output: process.env.DOCKER_STANDALONE_BUILD === "1" ? "standalone" : undefined,
-  serverExternalPackages: ["@prisma/client", "bullmq", "ioredis", "googleapis"],
+  // @whiskeysockets/baileys + ws must NOT be bundled by Next: webpack mangles
+  // the `ws` package's conditional bufferutil require, and the WebSocket frame
+  // masking path then throws "TypeError: b.mask is not a function" the moment a
+  // WhatsApp socket opens — pairing produces no QR and silently closes.
+  serverExternalPackages: [
+    "@prisma/client",
+    "bullmq",
+    "ioredis",
+    "googleapis",
+    "@whiskeysockets/baileys",
+    "ws",
+    "pino",
+    "pino-pretty",
+  ],
   eslint: { ignoreDuringBuilds: true },
 };
 
