@@ -50,37 +50,58 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   events: {
-    /**
-     * Mirror the Google OAuth tokens from the adapter's Account row into
-     * encrypted Connection rows the connectors read (spec §5). One consent →
-     * gmail + calendar + drive connections.
-     */
+    // First consent — mirror straight away.
     async linkAccount({ user, account }) {
-      if (account.provider !== "google") return;
-      const scopes = (account.scope ?? "").split(" ").filter(Boolean);
-      const expiresAt = account.expires_at ? new Date(account.expires_at * 1000) : null;
-      for (const provider of ["gmail", "calendar", "drive"] as const) {
-        await prisma.connection.upsert({
-          where: { userId_provider: { userId: user.id!, provider } },
-          create: {
-            userId: user.id!,
-            provider,
-            accessTokenEncrypted: encryptTokenOrNull(account.access_token),
-            refreshTokenEncrypted: encryptTokenOrNull(account.refresh_token),
-            scopes,
-            status: "connected",
-            externalAccountId: account.providerAccountId,
-            expiresAt,
-          },
-          update: {
-            accessTokenEncrypted: encryptTokenOrNull(account.access_token),
-            refreshTokenEncrypted: encryptTokenOrNull(account.refresh_token),
-            scopes,
-            status: "connected",
-            expiresAt,
-          },
-        });
-      }
+      if (user.id) await mirrorGoogleTokens(user.id, account);
+    },
+    /**
+     * EVERY sign-in re-mirrors the fresh Google tokens into the encrypted
+     * Connection rows. `linkAccount` only fires once, so without this a
+     * returning user is stuck with tokens that were encrypted under an old
+     * TOKEN_ENCRYPTION_KEY (decrypt then throws "Unsupported state…" and every
+     * sync fails). Signing in again is the recovery path.
+     */
+    async signIn({ user, account }) {
+      if (user.id && account) await mirrorGoogleTokens(user.id, account);
     },
   },
 });
+
+/**
+ * Copy the Google OAuth tokens from the adapter's Account into encrypted
+ * `Connection` rows the connectors read (spec §5). One consent → gmail +
+ * calendar + drive. Also clears a stale `error` status.
+ */
+async function mirrorGoogleTokens(
+  userId: string,
+  account: { provider?: string; scope?: string | null; access_token?: string | null; refresh_token?: string | null; expires_at?: number | null; providerAccountId?: string },
+): Promise<void> {
+  if (account.provider !== "google" || !account.access_token) return;
+  const scopes = (account.scope ?? "").split(" ").filter(Boolean);
+  const expiresAt = account.expires_at ? new Date(account.expires_at * 1000) : null;
+
+  for (const provider of ["gmail", "calendar", "drive"] as const) {
+    const tokenData: Record<string, unknown> = {
+      accessTokenEncrypted: encryptTokenOrNull(account.access_token),
+      scopes,
+      status: "connected" as const,
+      expiresAt,
+    };
+    // Google only returns a refresh_token on the first consent for a client —
+    // don't overwrite a good stored one with null on later sign-ins.
+    if (account.refresh_token) {
+      tokenData.refreshTokenEncrypted = encryptTokenOrNull(account.refresh_token);
+    }
+    await prisma.connection.upsert({
+      where: { userId_provider: { userId, provider } },
+      create: {
+        userId,
+        provider,
+        refreshTokenEncrypted: encryptTokenOrNull(account.refresh_token),
+        externalAccountId: account.providerAccountId,
+        ...tokenData,
+      },
+      update: tokenData,
+    });
+  }
+}
