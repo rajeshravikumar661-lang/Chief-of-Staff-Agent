@@ -4,7 +4,7 @@ import { cn } from "@/lib/ui";
 export function SectionHeader({ title, count, tone = "quiet" }: { title: string; count?: number; tone?: "quiet" | "warm" }) {
   return (
     <div className="mb-3 flex items-center gap-2">
-      <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">{title}</h2>
+      <h2 className="font-mono text-[0.7rem] uppercase tracking-[0.08em] text-ink-faint">{title}</h2>
       {typeof count === "number" && count > 0 && (
         <span
           className={cn(

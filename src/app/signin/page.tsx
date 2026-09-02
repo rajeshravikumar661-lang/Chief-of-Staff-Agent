@@ -11,7 +11,7 @@ export default async function SignInPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper px-4">
       <div className="w-full max-w-sm rounded-xl border border-hairline bg-paper-raised p-8 text-center shadow-sm">
-        <p className="font-serif text-2xl font-semibold text-ink">Kora</p>
+        <p className="font-hand text-4xl font-bold text-ink">Kora</p>
         <p className="mt-2 text-sm text-ink-soft">
           Your AI chief of staff — it watches your work, remembers your commitments, and prepares you for what&apos;s coming.
         </p>

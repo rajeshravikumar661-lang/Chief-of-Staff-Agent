@@ -1,42 +1,61 @@
 @import "tailwindcss";
 
 @theme {
-  /* Kora palette — warm ink & paper, not "generic AI SaaS blue". */
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-serif: "Source Serif 4", ui-serif, Georgia, serif;
+  /*
+   * Kora "desk" palette (design: Chief of Staff Dashboard — 4a).
+   * A warm analog desk: kraft-paper surface, cream cards, brown ink,
+   * a single wax-seal red accent. Fonts are wired to the next/font
+   * variables set on <html> in app/layout.tsx.
+   */
+  --font-sans: var(--font-serif-src), "Source Serif 4", ui-serif, Georgia, serif;
+  --font-serif: var(--font-serif-src), "Source Serif 4", ui-serif, Georgia, serif;
+  --font-hand: var(--font-hand-src), "Caveat", ui-rounded, cursive;
+  --font-mono: var(--font-mono-src), "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-paper: #faf8f4;
-  --color-paper-raised: #ffffff;
-  --color-ink: #1c1a17;
-  --color-ink-soft: #55504a;
-  --color-ink-faint: #8a847b;
-  --color-hairline: #e7e2d9;
-  --color-hairline-strong: #d8d1c4;
+  --color-paper: #f0eee9;
+  --color-paper-raised: #fdfaf2;
+  --color-ink: #3a2e20;
+  --color-ink-soft: #5a4a36;
+  --color-ink-faint: #8a7454;
+  --color-hairline: #e2d8c6;
+  --color-hairline-strong: #d8c9a8;
 
-  --color-brand: #2f4f3f;
-  --color-brand-soft: #e7efe9;
-  --color-brand-ink: #1c332a;
+  /* Desk surfaces — the kraft blotter and the darker section bands. */
+  --color-kraft: #c9b89a;
+  --color-kraft-soft: #ded0b6;
+  --color-band: #8a7454;
+  --color-band-ink: #f0e6d0;
 
-  --color-accent: #b4562f;
-  --color-accent-soft: #f6e6dc;
+  /* "Brand" = espresso ink: active nav, primary buttons. */
+  --color-brand: #5b4636;
+  --color-brand-soft: #ece3d3;
+  --color-brand-ink: #3a2e20;
+
+  /* The one accent — sealing-wax red. */
+  --color-accent: #a4272c;
+  --color-accent-soft: #f4e3df;
 
   --color-critical: #a4272c;
-  --color-critical-soft: #fbe7e6;
+  --color-critical-soft: #f7e4e2;
   --color-high: #b4562f;
   --color-high-soft: #f6e6dc;
   --color-medium: #8a6d1f;
   --color-medium-soft: #f4edd8;
-  --color-low: #55504a;
-  --color-low-soft: #eeece7;
+  --color-low: #5a4a36;
+  --color-low-soft: #ece5da;
 
-  --color-success: #2f6a4a;
-  --color-success-soft: #e3efe6;
+  --color-success: #4a6a45;
+  --color-success-soft: #e6eede;
 
-  /* Focus/work accent for the Today page (mockup's "soft blue") — a distinct
-     hue from the sage-green brand color, used only for focus/next-up state. */
-  --color-focus: #3e6b96;
-  --color-focus-soft: #e4edf5;
-  --color-focus-ink: #1f3a52;
+  /* "Next up" / focus state — a warm kraft highlight, not a cold blue. */
+  --color-focus: #8a7454;
+  --color-focus-soft: #f2ece0;
+  --color-focus-ink: #3a2e20;
+
+  /* Cards sit on the desk like paper — a real drop shadow, tiny radius. */
+  --radius-card: 2px;
+  --shadow-card: 2px 4px 10px rgba(58, 46, 32, 0.14);
+  --shadow-note: 2px 4px 10px rgba(58, 46, 32, 0.22);
 }
 
 /*
@@ -44,34 +63,43 @@
  * only switches to dark when the user explicitly picks it (ThemeToggle sets
  * data-theme="dark" on <html> and persists the choice to localStorage; a
  * blocking inline script in the root layout applies it before first paint
- * so there's no flash). No prefers-color-scheme fallback on purpose: the
- * request was "light by default, with an option to switch to dark."
+ * so there's no flash). Dark = the same desk after hours: deep espresso.
  */
 :root[data-theme="dark"] {
-  --color-paper: #161512;
-  --color-paper-raised: #1e1c19;
-  --color-ink: #f2efe9;
-  --color-ink-soft: #c7c1b6;
-  --color-ink-faint: #8a847b;
-  --color-hairline: #322f2a;
-  --color-hairline-strong: #423e37;
+  --color-paper: #1b1712;
+  --color-paper-raised: #262019;
+  --color-ink: #f1e7d6;
+  --color-ink-soft: #cabda7;
+  --color-ink-faint: #9a8a72;
+  --color-hairline: #3a2f24;
+  --color-hairline-strong: #4b3d2e;
 
-  --color-brand: #7fae94;
-  --color-brand-soft: #1e2b23;
-  --color-brand-ink: #d7ead9;
+  --color-kraft: #4b3d2e;
+  --color-kraft-soft: #3a2f24;
+  --color-band: #6f5a43;
+  --color-band-ink: #f1e7d6;
 
-  --color-accent: #d68a5f;
-  --color-accent-soft: #302119;
+  --color-brand: #c2a67c;
+  --color-brand-soft: #2c2318;
+  --color-brand-ink: #f1e7d6;
 
+  --color-accent: #d17a63;
+  --color-accent-soft: #33211c;
+
+  --color-critical: #d97a6f;
   --color-critical-soft: #351a19;
   --color-high-soft: #302119;
   --color-medium-soft: #2c2717;
   --color-low-soft: #26241f;
-  --color-success-soft: #1b2921;
+  --color-success: #8fae7f;
+  --color-success-soft: #1f2a1b;
 
-  --color-focus: #86afd6;
-  --color-focus-soft: #1b2a38;
-  --color-focus-ink: #dce9f5;
+  --color-focus: #c2a67c;
+  --color-focus-soft: #2c2318;
+  --color-focus-ink: #f1e7d6;
+
+  --shadow-card: 2px 4px 10px rgba(0, 0, 0, 0.4);
+  --shadow-note: 2px 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -81,9 +109,12 @@
 }
 
 body {
-  background: var(--color-paper);
+  background-color: var(--color-paper);
+  /* Faint paper grain — the desk's tooth. */
+  background-image: radial-gradient(rgba(58, 46, 32, 0.045) 1px, transparent 1px);
+  background-size: 5px 5px;
   color: var(--color-ink);
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -93,6 +124,37 @@ body {
 }
 
 ::selection {
-  background: var(--color-brand-soft);
-  color: var(--color-brand-ink);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Desk primitives — small, composable, used across pages.
+ * ------------------------------------------------------------------------- */
+
+/* A kraft section band with a mono label, like the "IN-TRAY — 3 LETTERS" strip. */
+.desk-band {
+  background: var(--color-band);
+  color: var(--color-band-ink);
+  border-radius: 4px;
+}
+
+/* Small-caps typewriter micro-label: "ROLODEX · NEXT UP", section headers. */
+.desk-label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+/* Handwritten accent — greeting, sticky notes. */
+.hand {
+  font-family: var(--font-hand);
+}
+
+/* Paper grain on any surface that wants the desk tooth. */
+.paper-texture {
+  background-image: radial-gradient(rgba(58, 46, 32, 0.05) 1px, transparent 1px);
+  background-size: 5px 5px;
 }
