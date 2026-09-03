@@ -35,14 +35,24 @@ export function DateStrip() {
             href="/planner/calendar"
             aria-current={isToday ? "date" : undefined}
             className={cn(
-              "flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-xs transition",
-              isToday ? "bg-focus text-white shadow-sm" : "text-ink-soft hover:bg-paper-raised",
+              "group flex flex-1 flex-col items-center gap-1 rounded-xl py-2 text-xs transition",
+              isToday ? "bg-focus text-white shadow-sm" : "text-ink-soft hover:bg-surface",
             )}
           >
-            <span className={cn("uppercase tracking-wide", isToday ? "text-white/70" : "text-ink-faint")}>
+            <span
+              className={cn(
+                "uppercase tracking-wide",
+                isToday ? "text-white/70" : "text-ink-faint group-hover:text-surface-ink-faint",
+              )}
+            >
               {d.toLocaleDateString(undefined, { weekday: "short" })}
             </span>
-            <span className={cn("text-sm font-semibold tabular-nums", isToday ? "text-white" : "text-ink")}>
+            <span
+              className={cn(
+                "text-sm font-semibold tabular-nums",
+                isToday ? "text-white" : "text-ink group-hover:text-surface-ink",
+              )}
+            >
               {d.getDate()}
             </span>
           </Link>

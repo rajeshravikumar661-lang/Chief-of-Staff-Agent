@@ -22,7 +22,7 @@ export default function PersonPage({ params }: { params: Promise<{ id: string }>
   return (
     <div className="space-y-8 pb-16">
       <div className="flex items-start gap-4">
-        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand-soft text-lg font-medium text-brand-ink">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-surface text-lg font-medium text-surface-ink">
           {initials(person.name)}
         </span>
         <div className="min-w-0">
@@ -47,9 +47,9 @@ export default function PersonPage({ params }: { params: Promise<{ id: string }>
         ) : (
           <ul className="space-y-2">
             {person.openCommitments.map((c) => (
-              <li key={c.id} className="rounded-lg border border-hairline bg-paper-raised p-3">
-                <p className="text-sm text-ink">{c.description}</p>
-                <p className="mt-1 text-xs text-ink-faint">
+              <li key={c.id} className="card-paper p-3">
+                <p className="text-sm text-surface-ink">{c.description}</p>
+                <p className="mt-1 text-xs text-surface-ink-faint">
                   {c.deadline ? formatRelativeTime(c.deadline) : "no deadline"}
                 </p>
               </li>
@@ -64,11 +64,11 @@ export default function PersonPage({ params }: { params: Promise<{ id: string }>
         {person.upcomingMeetings.length === 0 ? (
           <p className="text-sm text-ink-faint">Nothing scheduled with {person.name}.</p>
         ) : (
-          <ul className="divide-y divide-hairline rounded-lg border border-hairline bg-paper-raised">
+          <ul className="card-paper divide-y divide-surface-hairline overflow-hidden">
             {person.upcomingMeetings.map((m, i) => (
               <li key={m.eventId ?? `${m.time}-${i}`} className="flex items-baseline gap-4 px-4 py-3">
-                <span className="w-14 shrink-0 text-sm tabular-nums text-ink-soft">{m.time}</span>
-                <span className="text-sm text-ink">{m.title}</span>
+                <span className="w-14 shrink-0 text-sm tabular-nums text-surface-ink-soft">{m.time}</span>
+                <span className="text-sm text-surface-ink">{m.title}</span>
               </li>
             ))}
           </ul>
@@ -83,12 +83,12 @@ export default function PersonPage({ params }: { params: Promise<{ id: string }>
         ) : (
           <ul className="space-y-2">
             {person.recentMessages.map((m) => (
-              <li key={m.id} className="rounded-lg border border-hairline bg-paper-raised p-3">
+              <li key={m.id} className="card-paper p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="min-w-0 truncate text-sm font-medium text-ink">{m.subject ?? "(no subject)"}</p>
-                  <span className="shrink-0 text-xs text-ink-faint">{formatClock(m.timestamp)}</span>
+                  <p className="min-w-0 truncate text-sm font-medium text-surface-ink">{m.subject ?? "(no subject)"}</p>
+                  <span className="shrink-0 text-xs text-surface-ink-faint">{formatClock(m.timestamp)}</span>
                 </div>
-                {m.snippet && <p className="mt-0.5 truncate text-sm text-ink-soft">{m.snippet}</p>}
+                {m.snippet && <p className="mt-0.5 truncate text-sm text-surface-ink-soft">{m.snippet}</p>}
               </li>
             ))}
           </ul>
@@ -103,13 +103,13 @@ export default function PersonPage({ params }: { params: Promise<{ id: string }>
         ) : (
           <ul className="space-y-2">
             {person.documents.map((d) => (
-              <li key={d.id} className="rounded-lg border border-hairline bg-paper-raised p-3">
+              <li key={d.id} className="card-paper p-3">
                 {d.url ? (
-                  <Link href={d.url} className="text-sm text-brand underline decoration-dotted">
+                  <Link href={d.url} className="text-sm text-accent underline decoration-dotted">
                     {d.title ?? d.url}
                   </Link>
                 ) : (
-                  <span className="text-sm text-ink">{d.title ?? "Untitled document"}</span>
+                  <span className="text-sm text-surface-ink">{d.title ?? "Untitled document"}</span>
                 )}
               </li>
             ))}

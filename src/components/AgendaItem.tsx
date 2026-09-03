@@ -54,10 +54,10 @@ export function AgendaItem({
 
       <div
         className={cn(
-          "min-w-0 flex-1 rounded-2xl border px-4 py-2.5 shadow-sm transition-colors",
+          "min-w-0 flex-1 rounded-2xl border px-4 py-2.5 transition-colors",
           isNext && "border-focus/30 bg-focus-soft",
           !isNext && isPast && "border-success/25 bg-success-soft",
-          !isNext && !isPast && "border-hairline bg-paper-raised",
+          !isNext && !isPast && "border-hairline bg-transparent hover:border-hairline-strong",
         )}
       >
         <div className="flex items-center gap-2">

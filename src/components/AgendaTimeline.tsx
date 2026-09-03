@@ -21,7 +21,7 @@ export function AgendaTimeline({
     return (
       <ul className="space-y-4">
         {[0, 1, 2].map((i) => (
-          <li key={i} className="h-16 animate-pulse rounded-2xl border border-hairline bg-paper-raised" />
+          <li key={i} className="h-16 animate-pulse rounded-2xl border border-hairline bg-white/[0.04]" />
         ))}
       </ul>
     );

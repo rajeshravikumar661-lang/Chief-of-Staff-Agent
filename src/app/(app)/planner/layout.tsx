@@ -4,7 +4,7 @@ import { TabNav } from "@/components/TabNav";
 export default function PlannerLayout({ children }: { children: ReactNode }) {
   return (
     <div>
-      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-faint">Planner</p>
+      <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-faint">Calendar</p>
       <TabNav
         tabs={[
           { href: "/planner/calendar", label: "Calendar" },

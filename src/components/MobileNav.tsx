@@ -11,10 +11,10 @@ import { ChatIcon, NavIcon, SignOutIcon, type NavIconName } from "@/components/I
 
 const BAR_LEFT: { href: string; label: string; icon: NavIconName }[] = [
   { href: "/today", label: "Today", icon: "home" },
-  { href: "/inbox", label: "Inbox", icon: "mail" },
 ];
 const BAR_RIGHT: { href: string; label: string; icon: NavIconName }[] = [
-  { href: "/planner", label: "Planner", icon: "calendar" },
+  { href: "/planner", label: "Calendar", icon: "calendar" },
+  { href: "/people", label: "People", icon: "users" },
 ];
 
 function barItem(item: { href: string; label: string; icon: NavIconName }, active: boolean, count: number) {

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { DEMO_MODE } from "@/lib/demo";
-import { Sidebar } from "@/components/Sidebar";
+import { TopNav } from "@/components/TopNav";
 import { MobileNav } from "@/components/MobileNav";
 import { ChatBar } from "@/components/ChatBar";
 import { DemoModeBanner } from "@/components/DemoModeBanner";
@@ -34,10 +34,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <p className="font-hand text-2xl font-bold text-ink">Kora</p>
         {userName && <p className="truncate text-xs text-ink-faint">{userName}</p>}
       </div>
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <Sidebar userName={userName} />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <TopNav userName={userName} />
         <main className="min-w-0 flex-1 px-3 py-4 pb-24 sm:px-5 lg:px-7 lg:py-7 lg:pb-7">
-          <div className="desk-surface mx-auto max-w-4xl">{children}</div>
+          <div className="desk-surface mx-auto max-w-5xl">{children}</div>
         </main>
         <ChatBar />
         <MobileNav />

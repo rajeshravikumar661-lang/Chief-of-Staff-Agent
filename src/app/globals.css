@@ -2,105 +2,84 @@
 
 @theme {
   /*
-   * Kora "desk" palette (design: Chief of Staff Dashboard — 4a).
-   * A warm analog desk: kraft-paper surface, cream cards, brown ink,
-   * a single wax-seal red accent. Fonts are wired to the next/font
-   * variables set on <html> in app/layout.tsx.
+   * Kora Desktop palette (approved design: "Kora Desktop"). A dark espresso
+   * canvas with warm ivory paper cards floating on it, one terracotta accent,
+   * editorial serif headings over a Figtree UI/body face. Fonts are wired to
+   * the next/font variables set on <html> in app/layout.tsx.
    */
-  --font-sans: var(--font-serif-src), "Source Serif 4", ui-serif, Georgia, serif;
+  --font-sans: var(--font-sans-src), "Figtree", system-ui, sans-serif;
   --font-serif: var(--font-serif-src), "Source Serif 4", ui-serif, Georgia, serif;
   --font-hand: var(--font-hand-src), "Caveat", ui-rounded, cursive;
   --font-mono: var(--font-mono-src), "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-paper: #f0eee9;
-  --color-paper-raised: #fdfaf2;
-  --color-ink: #3a2e20;
-  --color-ink-soft: #5a4a36;
-  --color-ink-faint: #8a7454;
-  --color-hairline: #e2d8c6;
-  --color-hairline-strong: #d8c9a8;
-
-  /* Desk surfaces — the kraft blotter and the darker section bands. */
-  --color-kraft: #c9b89a;
-  --color-kraft-soft: #ded0b6;
-  --color-band: #8a7454;
-  --color-band-ink: #f0e6d0;
-
-  /* "Brand" = espresso ink: active nav, primary buttons. */
-  --color-brand: #5b4636;
-  --color-brand-soft: #ece3d3;
-  --color-brand-ink: #3a2e20;
-
-  /* The one accent — sealing-wax red. */
-  --color-accent: #a4272c;
-  --color-accent-soft: #f4e3df;
-
-  --color-critical: #a4272c;
-  --color-critical-soft: #f7e4e2;
-  --color-high: #b4562f;
-  --color-high-soft: #f6e6dc;
-  --color-medium: #8a6d1f;
-  --color-medium-soft: #f4edd8;
-  --color-low: #5a4a36;
-  --color-low-soft: #ece5da;
-
-  --color-success: #4a6a45;
-  --color-success-soft: #e6eede;
-
-  /* "Next up" / focus state — a warm kraft highlight, not a cold blue. */
-  --color-focus: #8a7454;
-  --color-focus-soft: #f2ece0;
-  --color-focus-ink: #3a2e20;
-
-  /* Cards sit on the desk like paper — a real drop shadow, tiny radius. */
-  --radius-card: 2px;
-  --shadow-card: 2px 4px 10px rgba(58, 46, 32, 0.14);
-  --shadow-note: 2px 4px 10px rgba(58, 46, 32, 0.22);
-}
-
-/*
- * Theme: light is the default look regardless of OS preference — the app
- * only switches to dark when the user explicitly picks it (ThemeToggle sets
- * data-theme="dark" on <html> and persists the choice to localStorage; a
- * blocking inline script in the root layout applies it before first paint
- * so there's no flash). Dark = the same desk after hours: deep espresso.
- */
-:root[data-theme="dark"] {
-  --color-paper: #1b1712;
-  --color-paper-raised: #262019;
+  /* Canvas — the dark espresso backdrop every screen sits on. "Raised" is a
+     lighter dark panel in the SAME family (not the ivory surface below) —
+     every not-yet-restyled page still pairs it with --color-ink and expects
+     a dark-on-dark raised look, exactly like it did before this rebrand. */
+  --color-paper: #110e0c;
+  --color-paper-raised: #1e1712;
   --color-ink: #f1e7d6;
   --color-ink-soft: #cabda7;
   --color-ink-faint: #9a8a72;
-  --color-hairline: #3a2f24;
+  --color-hairline: #2e241d;
   --color-hairline-strong: #4b3d2e;
 
-  --color-kraft: #4b3d2e;
-  --color-kraft-soft: #3a2f24;
-  --color-band: #6f5a43;
+  /* Surface — ivory paper cards floating on the canvas; their own text
+     tokens (not --color-ink) since cards are always light regardless of
+     canvas theme. Use `.card-paper`/`surface-ink` utilities for content. */
+  --color-surface: #efe7da;
+  --color-surface-raised: #f3ece1;
+  --color-surface-deep: #e5daca;
+  --color-surface-ink: #241d18;
+  --color-surface-ink-soft: #5a4a36;
+  --color-surface-ink-faint: #8a7454;
+  --color-surface-hairline: #e2d8c6;
+
+  /* Desk surfaces — kept for legacy band/kraft utilities still in use. */
+  --color-kraft: #2e241d;
+  --color-kraft-soft: #1a1512;
+  --color-band: #4b3d2e;
   --color-band-ink: #f1e7d6;
 
-  --color-brand: #c2a67c;
-  --color-brand-soft: #2c2318;
+  /* "Brand" = warm parchment on dark canvas: active nav, primary buttons. */
+  --color-brand: #efe7da;
+  --color-brand-soft: #2e241d;
   --color-brand-ink: #f1e7d6;
 
-  --color-accent: #d17a63;
+  /* The one accent — terracotta. */
+  --color-accent: #c8664e;
   --color-accent-soft: #33211c;
 
-  --color-critical: #d97a6f;
+  --color-critical: #c8664e;
   --color-critical-soft: #351a19;
+  --color-high: #b4562f;
   --color-high-soft: #302119;
+  --color-medium: #8a6d1f;
   --color-medium-soft: #2c2717;
+  --color-low: #9a8a72;
   --color-low-soft: #26241f;
-  --color-success: #8fae7f;
+
+  --color-success: #4a5c43;
   --color-success-soft: #1f2a1b;
 
-  --color-focus: #c2a67c;
-  --color-focus-soft: #2c2318;
+  /* "Next up" / focus state — terracotta highlight. */
+  --color-focus: #c8664e;
+  --color-focus-soft: #33211c;
   --color-focus-ink: #f1e7d6;
 
-  --shadow-card: 2px 4px 10px rgba(0, 0, 0, 0.4);
-  --shadow-note: 2px 4px 12px rgba(0, 0, 0, 0.5);
+  /* Cards sit on the dark canvas like paper — a soft shadow, generous radius. */
+  --radius-card: 16px;
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-note: 0 10px 28px rgba(0, 0, 0, 0.45);
 }
+
+/*
+ * Theme: the Kora Desktop dark-espresso canvas is now the base look (no
+ * data-theme attribute needed). ThemeToggle still exists and still persists
+ * a choice to localStorage, but until a distinct light variant of this
+ * design is specified there's nothing for data-theme="dark" to override —
+ * the canvas is dark by default already.
+ */
 
 @media (prefers-reduced-motion: no-preference) {
   html {
@@ -110,11 +89,8 @@
 
 body {
   background-color: var(--color-paper);
-  /* Faint paper grain — the desk's tooth. */
-  background-image: radial-gradient(rgba(58, 46, 32, 0.045) 1px, transparent 1px);
-  background-size: 5px 5px;
   color: var(--color-ink);
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -153,15 +129,10 @@ body {
 }
 
 /*
- * The desk blotter: every app screen sits on this kraft surface. Values are
- * lifted straight from the mockup's outer <div>.
+ * Content wrapper: in the Kora Desktop design, cards float directly on the
+ * dark canvas — no extra boxed panel behind them — so this is padding-only.
  */
 .desk-surface {
-  background-color: var(--color-kraft);
-  background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px);
-  background-size: 5px 5px;
-  border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   padding: 22px 24px;
 }
 @media (min-width: 1024px) {
@@ -209,12 +180,17 @@ body {
   color: #dcecc8;
 }
 
-/* A cream index card — "ROLODEX · NEXT UP", and the default card shape. */
+/*
+ * An ivory paper card, floating on the dark canvas — the default card shape.
+ * Always light regardless of theme, so it sets its own text color rather
+ * than inheriting --color-ink (which is tuned for the dark canvas).
+ */
 .card-paper {
-  background: var(--color-paper-raised);
-  border: 1px solid var(--color-hairline-strong);
-  border-radius: 2px;
-  box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.16);
+  background: var(--color-surface);
+  color: var(--color-surface-ink);
+  border: 1px solid var(--color-surface-hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 
 /* The coffee "IN-TRAY" band that groups letter cards / sections. */
@@ -228,12 +204,13 @@ body {
   color: var(--color-band-ink);
 }
 
-/* A letter in the tray. */
+/* A letter in the tray — same ivory surface, slightly deeper. */
 .letter-card {
   position: relative;
-  background: color-mix(in srgb, var(--color-paper-raised) 92%, var(--color-kraft) 8%);
-  border: 1px solid color-mix(in srgb, var(--color-hairline-strong) 80%, var(--color-kraft));
-  border-radius: 2px;
+  background: var(--color-surface-deep);
+  color: var(--color-surface-ink);
+  border: 1px solid var(--color-surface-hairline);
+  border-radius: var(--radius-card);
   padding: 12px 14px;
 }
 

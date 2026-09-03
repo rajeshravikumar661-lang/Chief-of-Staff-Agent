@@ -34,11 +34,30 @@ export function MailIcon(props: IconProps) {
   );
 }
 
+export function DocumentIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M6.5 3.5h8l4 4v13a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-16a1 1 0 0 1 1-1Z" />
+      <path d="M14 3.5v4h4" />
+      <path d="M8.5 12.5h7M8.5 16h5" />
+    </svg>
+  );
+}
+
 export function CalendarIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>
       <rect x="3.5" y="5" width="17" height="15" rx="2" />
       <path d="M8 3.5v3M16 3.5v3M3.5 10h17" />
+    </svg>
+  );
+}
+
+export function SearchIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m19.5 19.5-4.35-4.35" />
     </svg>
   );
 }
@@ -286,6 +305,7 @@ const NAV_ICONS = {
   gear: GearIcon,
   chat: ChatIcon,
   more: MoreIcon,
+  documents: DocumentIcon,
 } as const;
 
 export type NavIconName = keyof typeof NAV_ICONS;

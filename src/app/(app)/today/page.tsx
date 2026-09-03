@@ -1,15 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { api } from "@/lib/api";
 import { nowHHMM } from "@/lib/agenda";
 import { AgentRunCard } from "@/components/AgentRunCard";
+import { KoraSummary } from "@/components/KoraSummary";
 import { DateStrip } from "@/components/DateStrip";
+import { FocusNowCard } from "@/components/FocusNowCard";
+import { AttentionList } from "@/components/AttentionList";
 import { AgendaTimeline } from "@/components/AgendaTimeline";
 import { SectionHeader } from "@/components/SectionHeader";
-import { cn } from "@/lib/ui";
-import type { NeedsAttentionItem, TodayResponse } from "@/lib/types";
+import { NavIcon } from "@/components/Icons";
+import { useNavBadges } from "@/lib/useNavBadges";
+import type { TodayResponse } from "@/lib/types";
 
 function buildDaySummary(today: TodayResponse | undefined): string {
   if (!today) return "";
@@ -42,21 +47,10 @@ function buildDaySummary(today: TodayResponse | undefined): string {
   return sentence.charAt(0).toUpperCase() + sentence.slice(1) + ".";
 }
 
-const WEEKDAY = new Date().toLocaleDateString(undefined, { weekday: "long" }).toLowerCase();
-
-/** A pinned reminder — a tilted sticky note with a strip of tape. */
-function StickyNote({ item, alt }: { item: NeedsAttentionItem; alt?: boolean }) {
-  return (
-    <div className={cn("sticky-note w-[170px] text-[15px] leading-snug", alt && "sticky-note--alt")}>
-      <span className="sticky-note__tape" aria-hidden />
-      {item.text}
-    </div>
-  );
-}
-
 export default function TodayPage() {
   const { data: today, error: todayError, isLoading: todayLoading, mutate: mutateToday } = useSWR("today", api.today);
   const [startedRunIds, setStartedRunIds] = useState<string[]>([]);
+  const badges = useNavBadges();
 
   async function runSuggestedAction(goal: string | undefined) {
     if (!goal) return;
@@ -68,11 +62,11 @@ export default function TodayPage() {
   if (todayError) {
     return (
       <div className="card-paper p-8 text-center">
-        <p className="text-sm text-ink">Couldn&apos;t load your day.</p>
-        <p className="mt-1 text-sm text-ink-faint">{todayError instanceof Error ? todayError.message : "Something went wrong."}</p>
+        <p className="text-sm text-surface-ink">Couldn&apos;t load your day.</p>
+        <p className="mt-1 text-sm text-surface-ink-faint">{todayError instanceof Error ? todayError.message : "Something went wrong."}</p>
         <button
           onClick={() => mutateToday()}
-          className="mt-3 rounded border border-hairline-strong px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-paper-raised"
+          className="mt-3 rounded border border-surface-hairline px-3 py-1.5 text-sm font-medium text-surface-ink-soft transition hover:bg-surface-deep"
         >
           Try again
         </button>
@@ -82,109 +76,54 @@ export default function TodayPage() {
 
   const agenda = today?.agenda ?? [];
   const attention = today?.needsAttention ?? [];
-  const followUps = today?.followUps ?? [];
   const suggestedActions = today?.suggestedActions ?? [];
   const recentRuns = today?.recentRuns ?? [];
 
   const now = nowHHMM();
   const sortedAgenda = [...agenda].sort((a, b) => a.time.localeCompare(b.time));
-  const nextEvent = sortedAgenda.find((e) => e.time >= now) ?? sortedAgenda[0];
-
-  // Pinned notes = the loud items (critical/high), max 3. The rest become letters.
-  const pinned = attention.filter((a) => a.priority === "CRITICAL" || a.priority === "HIGH").slice(0, 3);
-  const pinnedIds = new Set(pinned.map((p) => p.id));
-  const criticalCount = attention.filter((a) => a.priority === "CRITICAL").length;
-
-  const letters: { id: string; label: string; text: string; refUrl?: string; seal?: boolean }[] = [
-    ...attention
-      .filter((a) => !pinnedIds.has(a.id))
-      .map((a) => ({ id: a.id, label: a.priority === "CRITICAL" ? "NEEDS A DECISION" : "TO LOOK AT", text: a.text, refUrl: a.refUrl, seal: a.priority === "CRITICAL" })),
-    ...followUps.map((f) => ({ id: f.id, label: "FOLLOW-UP", text: f.text })),
-  ];
+  const nextEvent = sortedAgenda.find((e) => e.time >= now);
 
   return (
     <div className="pb-4">
-      {/* Header — "your desk, {weekday}" + the one-line brief */}
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h1 className="hand text-[2rem] font-bold leading-none text-ink sm:text-[2.4rem]">
-          {todayLoading ? (
-            <span className="inline-block h-8 w-56 animate-pulse rounded bg-paper-raised/60" />
-          ) : (
-            <>your desk, {WEEKDAY}</>
+      {/* Header — real greeting + one-line brief, over the desk photo */}
+      <KoraSummary
+        greeting={today?.greeting ?? "Good morning."}
+        summary={buildDaySummary(today)}
+        loading={todayLoading}
+      />
+
+      {/* Quiet entry points to sections that no longer have a nav slot */}
+      <div className="mt-3 flex items-center gap-4">
+        <Link href="/inbox" className="mono-label flex items-center gap-1.5 transition hover:!text-ink">
+          <NavIcon name="mail" className="h-3.5 w-3.5" aria-hidden />
+          Inbox
+        </Link>
+        <Link href="/activity" className="mono-label flex items-center gap-1.5 transition hover:!text-ink">
+          <NavIcon name="activity" className="h-3.5 w-3.5" aria-hidden />
+          Activity
+          {badges.activity > 0 && (
+            <span className="rounded-full bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent">
+              {badges.activity}
+            </span>
           )}
-        </h1>
-        <span className="mono-label !text-ink-soft">
-          {criticalCount > 0 ? `${criticalCount} sealed urgent · ` : ""}
-          {pinned.length} pinned
-        </span>
+        </Link>
       </div>
-      {!todayLoading && (
-        <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-ink-soft">{buildDaySummary(today)}</p>
-      )}
 
       {/* Mobile-only 7-day strip */}
       <div className="mt-4 lg:hidden">
         <DateStrip />
       </div>
 
-      {/* Row: pinned notes + the ROLODEX "next up" card */}
-      <div className="mt-6 flex flex-wrap items-start gap-6">
-        {pinned.length > 0 && (
-          <div className="flex flex-wrap items-start gap-4 pt-2">
-            {pinned.map((item, i) => (
-              <StickyNote key={item.id} item={item} alt={i % 2 === 1} />
-            ))}
-          </div>
-        )}
-
-        <div className="card-paper w-[260px] max-w-full px-[18px] py-4">
-          <p className="mono-label">Rolodex · Next up</p>
-          {nextEvent ? (
-            <>
-              <p className="mt-2 font-serif text-base font-semibold text-ink">{nextEvent.title}</p>
-              <p className="mt-1 font-serif text-[12.5px] text-ink-soft">{nextEvent.time}</p>
-            </>
-          ) : (
-            <p className="mt-2 font-serif text-[13px] text-ink-soft">Nothing else on the calendar today.</p>
-          )}
-        </div>
-      </div>
-
-      {/* IN-TRAY — the letters */}
-      <div className="in-tray mt-6">
-        <p className="mono-label mb-2.5">
-          In-tray — {letters.length} letter{letters.length === 1 ? "" : "s"}
-        </p>
-        {todayLoading ? (
-          <div className="grid gap-3.5 pb-3.5 sm:grid-cols-2 lg:grid-cols-3">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="letter-card h-16 animate-pulse" />
-            ))}
-          </div>
-        ) : letters.length === 0 ? (
-          <p className="pb-3.5 font-serif text-[13px] text-[color:var(--color-band-ink)]/80">
-            In-tray is empty — nothing waiting on you.
-          </p>
-        ) : (
-          <div className="grid gap-3.5 pb-3.5 sm:grid-cols-2 lg:grid-cols-3">
-            {letters.map((l, i) => {
-              const body = (
-                <div className="letter-card h-full">
-                  {l.seal && i === 0 && <span className="wax-seal" aria-hidden />}
-                  <p className="mono-label !text-[9.5px]">{l.label}</p>
-                  <p className="mt-1.5 pr-6 font-serif text-[13.5px] font-semibold leading-snug text-ink">{l.text}</p>
-                </div>
-              );
-              return l.refUrl ? (
-                <a key={l.id} href={l.refUrl} target="_blank" rel="noreferrer" className="block">
-                  {body}
-                </a>
-              ) : (
-                <div key={l.id}>{body}</div>
-              );
-            })}
-          </div>
-        )}
+      {/* UP NEXT + INBOX PRIORITY — side by side on desktop */}
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <FocusNowCard
+          event={nextEvent}
+          attention={attention}
+          suggestedActions={suggestedActions}
+          onRunAction={runSuggestedAction}
+          loading={todayLoading}
+        />
+        <AttentionList items={attention} loading={todayLoading} />
       </div>
 
       {/* Today's agenda */}
@@ -197,7 +136,7 @@ export default function TodayPage() {
       <section className="mt-8">
         <SectionHeader title="Suggested actions" />
         {todayLoading ? (
-          <div className="h-8 animate-pulse rounded border border-hairline bg-paper-raised" />
+          <div className="h-8 animate-pulse rounded border border-hairline bg-white/10" />
         ) : suggestedActions.length === 0 ? (
           <p className="font-serif text-sm text-ink-faint">No suggestions right now.</p>
         ) : (
@@ -207,7 +146,7 @@ export default function TodayPage() {
                 key={action.id}
                 onClick={() => runSuggestedAction(action.goal)}
                 disabled={!action.goal}
-                className="card-paper px-3 py-1.5 text-sm font-medium text-ink-soft transition hover:text-ink disabled:opacity-50"
+                className="card-paper px-3 py-1.5 text-sm font-medium text-surface-ink-soft transition hover:text-surface-ink disabled:opacity-50"
               >
                 {action.label}
               </button>
@@ -223,11 +162,30 @@ export default function TodayPage() {
         )}
       </section>
 
-      {/* Recent agent activity */}
+      {/* KORA AGENT UPDATE — real recent runs */}
       {recentRuns.length > 0 && (
-        <section className="mt-8 border-t border-hairline-strong/60 pt-6">
-          <SectionHeader title="Agent activity" />
-          <div className="space-y-2">
+        <section className="mt-8">
+          <div className="card-paper relative overflow-hidden p-6">
+            <div className="max-w-md">
+              <p className="mono-label !text-accent">Kora agent update</p>
+              <p className="mt-2 font-serif text-xl font-semibold text-surface-ink">
+                I&apos;ve been preparing for your day.
+              </p>
+              <p className="mt-1 text-sm text-surface-ink-soft">
+                {recentRuns.length} run{recentRuns.length === 1 ? "" : "s"} completed recently.
+              </p>
+            </div>
+            <img
+              src="/kora/agent-botanical.webp"
+              alt=""
+              aria-hidden
+              className="pointer-events-none absolute -right-4 top-0 hidden h-full w-32 object-cover opacity-80 sm:block"
+            />
+            <Link href="/agent-runs" className="relative mt-4 inline-block text-sm font-medium text-accent">
+              See all agent runs →
+            </Link>
+          </div>
+          <div className="mt-4 space-y-2">
             {recentRuns.map((r) => (
               <AgentRunCard key={r.id} runId={r.id} collapsedByDefault linkToDetail />
             ))}

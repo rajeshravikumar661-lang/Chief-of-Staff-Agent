@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Source_Serif_4, Caveat, JetBrains_Mono } from "next/font/google";
+import { Source_Serif_4, Caveat, JetBrains_Mono, Figtree } from "next/font/google";
 import "./globals.css";
 
 export const metadata = {
@@ -32,6 +32,12 @@ const mono = JetBrains_Mono({
   variable: "--font-mono-src",
   display: "swap",
 });
+const sans = Figtree({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans-src",
+  display: "swap",
+});
 
 const THEME_INIT_SCRIPT = `
 try {
@@ -46,7 +52,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${serif.variable} ${hand.variable} ${mono.variable}`}
+      className={`${serif.variable} ${hand.variable} ${mono.variable} ${sans.variable}`}
     >
       <head>
         {/* Light is the default theme; this only runs when a returning

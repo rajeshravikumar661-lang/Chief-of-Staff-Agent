@@ -19,11 +19,14 @@ export function ChatBar() {
     <Link
       href="/chat"
       className={cn(
-        "fixed bottom-5 right-5 z-30 hidden items-center gap-2 rounded-full border border-hairline-strong bg-paper-raised px-4 py-2.5 text-sm text-ink-soft shadow-sm transition hover:text-ink hover:shadow-md lg:flex",
+        "fixed bottom-5 right-5 z-30 hidden items-center gap-2.5 rounded-full border border-hairline-strong bg-kraft-soft px-4 py-2.5 text-sm font-medium text-ink shadow-lg transition hover:border-ink-faint lg:flex",
       )}
     >
       <ChatIcon className="h-4 w-4" aria-hidden />
       Ask Kora
+      <kbd className="rounded border border-hairline-strong bg-paper px-1.5 py-0.5 text-[10px] font-medium text-ink-faint">
+        ⌘K
+      </kbd>
     </Link>
   );
 }
